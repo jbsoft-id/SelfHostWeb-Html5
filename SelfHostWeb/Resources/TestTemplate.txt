@@ -1,0 +1,6 @@
+Hello {{NAME}},
+
+You have an appointment {{DATE}}.
+
+Thanks,
+  /*{{Signature}}*/

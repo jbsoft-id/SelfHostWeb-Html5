@@ -1,0 +1,84 @@
+<h1>Self Hosted Web Server</h1>
+<h2>REST Tests</h2>
+
+<style>
+  label {
+    width: 120px;
+    display: inline-block;
+    text-align: right;
+  }
+  span, input {
+    color: white;
+    background-color: transparent;
+    border: none;
+    font: 20px Arial, sans-serif;
+    margin: 3px 0px;
+  }
+  input:focus {
+    outline: none;
+  }
+</style>
+<script>
+  function SendClicked()
+  {
+    let method = document.getElementById('method').value;
+    let uri = 'rest.api';
+    let data = null;
+
+    if( document.getElementById('uri').value.length ) uri += document.getElementById('uri').value;
+
+    if( document.getElementById('reqbody').value.length ) data = JSON.parse(document.getElementById('reqbody').value);
+
+    SendData(data, uri, method)
+    .then((respData) => {
+                          console.log(uri + ' respJson.status: ' + respData.status);
+                          document.getElementById('resBody').innerHTML = JSON.stringify(respData, null, 2);
+                        })
+    .catch((ex) => { console.log(uri + ' promise Failed: ' + ex); });
+  }
+
+  function AddTestData()
+  {
+    document.getElementById('reqbody').value = '{\n  "Name": "Joe Doe",\n  "Age": 156\n}';
+  }
+</script>
+
+<p>This example takes information from the Input Data fields and sends it via an async fetch call to a /rest.api URI.  The 
+  api handler simply takes the input data, some other request data, and adds a {status = 1} element then bundles it into a 
+  JSON response which is returned and displayed in the Response Body section below.</p>
+
+<p>The URI can be the default "/rest.api" or optionally "/rest.api/item/NNN" where NNN is a positive integer value.  In either
+  case an optional query string can be added.</p>
+
+<div>
+  <fieldset>
+    <legend>Input Data</legend>
+    <div>
+      <label for="method">Method:</label>
+      <select id="method" name="method">
+        <option value="DELETE">DELETE</option>
+        <option value="GET" DEFAULT>GET</option>
+        <option value="HEAD">HEAD</option>
+        <option value="OPTIONS">OPTIONS</option>
+        <option value="PATCH" selected>PATCH</option>
+        <option value="POST">POST</option>
+        <option value="PUT" selected>PUT</option>
+      </select>
+    </div>
+    <div>
+      <label for="uri">URI:</label>
+      <span>&nbsp;rest.api</span><input type="text" name="uri" id="uri" size="40" placeholder="optional URI/Query string">
+    </div>
+    <div>
+      <label style="vertical-align: top;">Request Body:</label>
+      <textarea id="reqbody" name="reqbody" rows="10" cols="60"></textarea>
+      <button onclick="AddTestData()">Add Test Data</button>
+    </div>
+    <div>
+      <button onclick="SendClicked()">Send</button>
+    </div>
+  </fieldset>
+  <hr>
+  <h3>Response Body:</h3>
+  <pre id="resBody" name="resBody" class="run"></pre>
+</div>

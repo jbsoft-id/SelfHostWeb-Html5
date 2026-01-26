@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8"/>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+
+    <title>{{TITLE}}</title>
+
+    <style>
+      :root {
+        --side-menu-width: 240px;
+      }
+      HTML, BODY {
+        height: 100%;
+        width: 100%;
+        font-family: "Lato", sans-serif;
+        margin: 0px;
+        background-color: #3D4756;
+        color: white;
+      }
+      .fa {
+        font: normal normal normal 14px/1 FontAwesome;
+        font-size: 15px;
+        text-rendering: auto;
+      }
+      .fa-bars:before{content:"\2630"}
+      /* Wraps everything in the BODY. */
+      DIV.wrapper
+      {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+      }
+      .navbar {
+        margin: 0;
+        padding: 0;
+        width: var(--side-menu-width);
+        background-color: #f1f1f1;
+        position: fixed;
+        height: 100%;
+        overflow: auto;
+      }
+      .navbar a {
+        display: block;
+        color: black;
+        padding: 8px 16px;
+        text-decoration: none;
+      }
+      .navbar p {
+        display: block;
+        color: rgba(37, 32, 32, 0.932);
+        background-color: #95d097;
+        padding: 8px 16px;
+        margin: 0px;
+        font-weight: bold;
+      }
+      .navbar a.active {
+        background-color: #4CAF50;
+        padding: 16px;
+        color: white;
+      }
+      .navbar a:hover {
+        background-color: #555;
+        color: white;
+      }
+      DIV.main {
+        margin-left: var(--side-menu-width);
+        padding: 1px 16px;
+        height: 1000px;
+      }
+      .navbar .icon {
+        display: none;
+      }
+      @media screen and (max-width: 800px) {
+        .navbar {
+          width: 100%;
+          height: auto;
+          position: relative;
+        }
+        .navbar a {float: left;}
+        DIV.main
+        {
+          margin-left: 0;
+          flex: 1;
+          overflow: auto;
+        }
+        .navbar a.active
+        {
+          display: block;
+          width: calc(100% - 78px);
+        }
+        .navbar a,
+        .navbar p:not(:first-child) {
+          display: none;
+        }
+        .navbar a.icon {
+          float: right;
+          display: block;
+        }
+        .navbar.responsive .icon {
+          position: absolute;
+          right: 0;
+          top: 0;
+        }
+        .navbar.responsive a {
+          float: none;
+          display: block;
+          text-align: left;
+        }
+        .navbar.responsive p {
+          float: none;
+          display: block;
+          text-align: left;
+        }
+        INPUT.navigation {
+          top: 48px;
+        }
+      }
+    </style>
+
+    <script>
+      function MenuButtonOnClick()
+      {
+        var x = document.getElementById("mynavbar");
+        if( x.className === "navbar" )
+        {
+          x.className += " responsive";
+        }
+        else
+        {
+          x.className = "navbar";
+        }
+      }
+  
+      // The data parameter should be a javascript object.
+      async function SendData(data, url = '', method = 'POST')
+      {
+        // Default options are marked with *
+        let reqInfo =
+        {
+          method: method,                // *GET, POST, PUT, DELETE, etc.
+          mode: 'cors',                  // no-cors, *cors, same-origin
+          cache: 'no-cache',             // *default, no-cache, reload, force-cache, only-if-cached
+          credentials: 'same-origin',    // include, *same-origin, omit
+          headers: {
+            'Content-Type': 'application/json'
+            // 'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          redirect: 'follow',            // manual, *follow, error
+          referrerPolicy: 'no-referrer', // no-referrer, *no-referrer-when-downgrade, origin, origin-when-cross-origin, same-origin, strict-origin, strict-origin-when-cross-origin, unsafe-url
+          body: JSON.stringify(data)     // body data type must match "Content-Type" header
+        };
+
+        // HEAD and GET methods cannot have a body.
+        if( method == 'HEAD' || method == 'GET' )
+        {
+          delete reqInfo.body;
+        }
+
+        // https://developer.mozilla.org/en-US/docs/Web/API/Response
+        const response = await fetch(url, reqInfo);
+        
+        if( !response.ok )
+        {
+          alert('SendData request failed with status ' + response.status + '.');
+          return;
+        }
+
+        return response.json(); // parses JSON response into native JavaScript objects
+      }
+
+      /*{{JAVASCRIPT}}*/
+    </script>
+
+    <style>
+      /*{{STYLE}}*/
+    </style>
+  </head>
+  <body>
+
+    <div class="wrapper">
+      <div class="navbar" id="mynavbar">
+        <a class="active" style="text-align: center;" href="index.html"><img style="vertical-align:middle;" src="logo.png"></a>
+        <a href="javascript:MenuButtonOnClick();" class="icon"><i class="fa fa-bars"></i></a>
+
+        {{MENU}}
+      </div>
+
+      <div id="view" style="overflow-x:auto;" class="main">
+        {{VIEW}}
+      </div>
+    </div>
+  </body>
+</html>

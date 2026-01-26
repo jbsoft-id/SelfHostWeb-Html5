@@ -1,0 +1,46 @@
+<h1>Self Hosted Web Server</h1>
+<h2>PostData</h2>
+
+<p>
+This example is initially loaded with with a GET request from the menu as show in the Request Data display below.<br>
+Once the form is loaded and its inputs populated, the Submit button POSTs the forms data back to this URL and
+is displayed in the Request Data display below.
+</p>
+
+<div>
+  <fieldset>
+    <legend>Post Data</legend>
+      <form action="" method="POST">
+        <table>
+          <tr>
+            <td>Name:</td>
+            <td><input type="text" name="name" id="name" value="John Doe"></td>
+          </tr>
+          <tr>
+            <td>Email:</td>
+            <td><input type="email" name="email" id="email" value="address@example.dom"></td>
+          </tr>
+          <tr>
+            <td>Phone:</td>
+            <td><input type="tel" name="phone" id="phone" value="555-1212"></td>
+          </tr>
+          <tr>
+            <td>
+              <button type="submit">Submit</button>
+            </td>
+          </tr>
+        </table>
+      </form>
+  </fieldset>
+
+  <h3>Request Data</h3>
+  <pre class="run">
+HttpTransaction.HttpMethod: {{HttpMethod}}
+
+HttpTransaction.GetRequestBody():
+{{GetRequestBody}}
+
+Decoded Entity Body with HttpUtility methods:
+{{DecodeEntityBody}}
+  </pre>
+</div>
