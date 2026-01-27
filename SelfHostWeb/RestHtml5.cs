@@ -15,7 +15,7 @@ invokes the built in Javascript fetch() method.
 The REST 'like' api is implemented in UpdateTable.cs.  It receives JSON data that contains user input from the 
 form input fields on this page.  It then generates response data and returns it as JSON data.
 <br><br>
-Lastly, this page uses a local UpdateFunction() function that is called when the number input is changed or by
+Lastly, this page uses a local UpdateTable() function that is called when the number input is changed or by
 clicking the Update button.  It gathers the input data and calls the SendData() method and then handles the 
 response by updating the DOM.
 ";
