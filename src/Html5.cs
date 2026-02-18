@@ -137,6 +137,7 @@ even if you do, you won't offend me.  I just don't care. :o )
 **********************************************************************************************************************/
 
 using System.Dynamic;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace jbSoft.Reusable
@@ -177,6 +178,44 @@ namespace jbSoft.Reusable
         }
       }
     }
+
+    public override string ToString()
+    {
+      var attribs = new StringBuilder();
+
+      foreach (var kvp in this)
+      {
+        attribs.Append(MakeAttribute(kvp.Key, kvp.Value));
+      }
+
+      return attribs.ToString();
+    }
+    
+
+    private static string MakeAttribute(string name, string? value)
+    {
+      var result = "";
+
+      if (!string.IsNullOrWhiteSpace(name))
+      {
+        name = char.ToUpper(name[0]) + name.Substring(1).ToLower();
+
+        if (value == null)
+        {
+          result = "";
+        }
+        else if (string.IsNullOrWhiteSpace(value))
+        {
+          result = $" {name}";
+        }
+        else
+        {
+          result = $" {name}=\"{System.Net.WebUtility.HtmlEncode(value)}\"";
+        }
+      }
+
+      return result;
+    }
   }
 
 
@@ -185,6 +224,9 @@ namespace jbSoft.Reusable
   /// </summary>
   public class Html5 : DynamicObject
   {
+    public const string ID = "Id";
+    public const string NAME = "Name";
+
     private string _content = "";
 
     private static readonly HashSet<string> VoidElements = [
@@ -318,32 +360,31 @@ namespace jbSoft.Reusable
 
     private static string VoidElement(string tag, string? nameId = null, Attribs? attributes = null)
     {
+      if (attributes == null)
+      {
+        attributes = new Attribs();
+      }
+
       tag = tag.ToLower();
 
       var element = $"<{tag}";
 
       if (!string.IsNullOrEmpty(nameId))
       {
-        foreach (var attr in new[] { "Id", "Name" })
+        if (!attributes.ContainsKey(ID))
         {
-          if (attributes != null && attributes.ContainsKey(attr))
-          {
-            element += AddAttribute(attr, attributes[attr]);
-            attributes.Remove(attr);
-          }
-          else
-          {
-            element += AddAttribute(attr, nameId);
-          }
+          attributes[ID] = nameId;
+        }
+
+        if (!attributes.ContainsKey(NAME))
+        {
+          attributes[NAME] = nameId;
         }
       }
 
-      if (attributes != null)
+      if (attributes.Any())
       {
-        foreach (var kvp in attributes)
-        {
-          element += AddAttribute(kvp.Key, kvp.Value);
-        }
+        element += attributes.ToString();
       }
 
       element += ">\n";
@@ -371,32 +412,6 @@ namespace jbSoft.Reusable
         {
           content = content.Trim();
           result += $"{content}</{tag}>\n";
-        }
-      }
-
-      return result;
-    }
-
-
-    private static string AddAttribute(string name, string? value)
-    {
-      var result = "";
-
-      if (!string.IsNullOrWhiteSpace(name))
-      {
-        name = char.ToUpper(name[0]) + name.Substring(1).ToLower();
-
-        if (value == null)
-        {
-          result = "";
-        }
-        else if (string.IsNullOrWhiteSpace(value))
-        {
-          result = $" {name}";
-        }
-        else
-        {
-          result = $" {name}=\"{System.Net.WebUtility.HtmlEncode(value)}\"";
         }
       }
 
