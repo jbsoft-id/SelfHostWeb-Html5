@@ -160,13 +160,13 @@ namespace jbSoft.Reusable
         int currentPosition = 0;
         foreach (Match match in matches)
         {
-          Console.WriteLine($"HTML5:: {match.Groups["attrib"].Value} = {match.Groups["value"].Value}");
+          //Console.WriteLine($"HTML5:: {match.Groups["attrib"].Value} = {match.Groups["value"].Value}");
           Add(match.Groups["attrib"].Value, match.Groups["value"].Value);
 
           // Check if the current match starts exactly where the last one ended
           if (match.Index != currentPosition)
           {
-            throw new Exception("Gap found in the string.");
+            throw new Exception("Error parsing attribute string.");
           }
           currentPosition += match.Length;
         }
@@ -174,10 +174,11 @@ namespace jbSoft.Reusable
         // Check if the final position reached the very end of the input string
         if (currentPosition != attribs.Length)
         {
-          throw new Exception("currentPosition != attribs.Length");
+          throw new Exception("Error parsing attribute string.");
         }
       }
     }
+
 
     public override string ToString()
     {
@@ -227,6 +228,7 @@ namespace jbSoft.Reusable
     public const string ID = "Id";
     public const string NAME = "Name";
 
+    // TODO: Convert this to a StringBuilder.
     private string _content = "";
 
     private static readonly HashSet<string> VoidElements = [
