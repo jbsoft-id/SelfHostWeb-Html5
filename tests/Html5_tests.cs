@@ -109,10 +109,41 @@ namespace jbSoft.Reusable.Tests
 
 
     [Test]
-    public void InvalidElement_NoArgs_ThrowsRuntimeBinderException()
+    public void Element_NotInvalid_ThrowsHtml5Exception()
     {
       Assert.That(() => _html.Bogus(),
-                  Throws.InstanceOf<RuntimeBinderException>().With.Message.EqualTo("'jbSoft.Reusable.Html5' does not contain a definition for 'Bogus'"));
+                  Throws.InstanceOf<Html5Exception>().With.Message.EqualTo("Unrecognized 'bogus' element."));
+    }
+
+
+    [Test]
+    public void Element_IncorrectArguments_ThrowsHtml5ExceptionWithMessage()
+    {
+      Assert.Multiple(() =>
+      {
+        // Br is a void element and take only two args.
+        Assert.That(() => _html.Br("Content", "myId", "at=myName"),
+                    Throws.InstanceOf<Html5Exception>().With.Message.EqualTo("Too many argument values for br element."));
+        // The nameId arg must be a string.
+        Assert.That(() => _html.Br(123, "at=myName"),
+                    Throws.InstanceOf<Html5Exception>().With.Message.EqualTo("Invalid value for br's nameId argument."));
+        // The invalid attributes argurment value.
+        Assert.That(() => _html.Br("myId", 123),
+                    Throws.InstanceOf<Html5Exception>().With.Message.EqualTo("Invalid value for br's attributes argument."));
+
+        // Span is a content element and take only three args.
+        Assert.That(() => _html.Span(null, null, null, "test"),
+                    Throws.InstanceOf<Html5Exception>().With.Message.EqualTo("Too many argument values for span element."));
+        // The invalid content argurment value.
+        Assert.That(() => _html.Span(123),
+                    Throws.InstanceOf<Html5Exception>().With.Message.EqualTo("Invalid value for span's content argument."));
+        // The invalid nameId argurment value.
+        Assert.That(() => _html.Span(null, 123),
+                    Throws.InstanceOf<Html5Exception>().With.Message.EqualTo("Invalid value for span's nameId argument."));
+        // The invalid attributes argurment value.
+        Assert.That(() => _html.Span(null, null, 123),
+                    Throws.InstanceOf<Html5Exception>().With.Message.EqualTo("Invalid value for span's attributes argument."));
+      });
     }
 
 
@@ -216,6 +247,15 @@ namespace jbSoft.Reusable.Tests
         Assert.That(_html.GetContent(), Does.EndWith(">\n"));
       });
     }
+
+
+    // AREAS TO TEST
+    // -------------------
+    // Fluent vs Nonfluent
+    // Content Elements
+    // Begin_End
+    // Enhanced Elements
+
   }
 }
 

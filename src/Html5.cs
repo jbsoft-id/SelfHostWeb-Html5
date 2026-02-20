@@ -31,7 +31,8 @@ fluent-like style.
 However, sometimes it is necessary to create html that becomes the content of another.  Since by default each 
 method's results are accumulated in the Html5 object, another approach is required.  The approach taken herein
 is to add an underscore suffix to the method name which alters the element method's behaviour.  Rather than 
-accumulate the HTML and return a self reference, the HTML content is returned and nothing is accumulated.
+accumulate the HTML and return a self reference, the HTML content is returned and nothing is accumulated.  This
+is called the nonfluent style.
 
   Exanple (input element inside table data element)     Results
 
@@ -166,7 +167,7 @@ namespace jbSoft.Reusable
           // Check if the current match starts exactly where the last one ended
           if (match.Index != currentPosition)
           {
-            throw new Exception("Error parsing attribute string.");
+            throw new Html5Exception("Error parsing attribute string.");
           }
           currentPosition += match.Length;
         }
@@ -174,7 +175,7 @@ namespace jbSoft.Reusable
         // Check if the final position reached the very end of the input string
         if (currentPosition != attribs.Length)
         {
-          throw new Exception("Error parsing attribute string.");
+          throw new Html5Exception("Error parsing attribute string.");
         }
       }
     }
@@ -268,65 +269,63 @@ namespace jbSoft.Reusable
     // Override TryInvokeMember to specify how operations that invoke a member are performed.
     public override bool TryInvokeMember(InvokeMemberBinder binder, object?[]? args, out object? result)
     {
-      var status = true;
-
-      var method = binder.Name.ToLowerInvariant();
+      var element = binder.Name.ToLowerInvariant();
       result = this;
       string? nameId;
       Attribs? attribs;
       string html = "";
       var fluentMode = true;
 
-      if (method.EndsWith('_'))
+      if (element.EndsWith('_'))
       {
         fluentMode = false;
-        method = method[..^1];
+        element = element[..^1];
       }
 
-      if (EnhancedElements.TryGetValue(method, out var Method))
+      if (EnhancedElements.TryGetValue(element, out var Method))
       {
         html = Method(args);
       }
-      else if (VoidElements.Contains(method))
+      else if (VoidElements.Contains(element))
       {
-        ParseArgsIntoNameIdAttributes(args, out nameId, out attribs);
-        html = VoidElement(method, nameId, attribs);
+        ParseArgsIntoNameIdAttributes(element, args, out nameId, out attribs);
+        html = VoidElement(element, nameId, attribs);
       }
-      else if (Elements.Contains(method))
+      else if (Elements.Contains(element))
       {
-        ParseArgsIntoContentNameIdAttributes(args, out string content, out nameId, out attribs);
-        html = Element(method, content, nameId, attribs);
+        ParseArgsIntoContentNameIdAttributes(element, args, out string content, out nameId, out attribs);
+        html = Element(element, content, nameId, attribs);
       }
-      else if (method.StartsWith("begin"))
+      else if (element.StartsWith("begin"))
       {
-        var tag = method[5..];
+        element = element[5..];
 
-        if (Elements.Contains(tag))
+        if (Elements.Contains(element))
         {
-          ParseArgsIntoNameIdAttributes(args, out nameId, out attribs);
-          html = Begin(tag, nameId, attribs);
+          ParseArgsIntoNameIdAttributes(element, args, out nameId, out attribs);
+          html = Begin(element, nameId, attribs);
         }
         else
         {
-          throw new Exception($"Begin cannot be used with '{tag}' element.");
+          throw new Html5Exception($"Begin cannot be used with '{element}' element.");
         }
       }
-      else if (method.StartsWith("end"))
+      else if (element.StartsWith("end"))
       {
-        var tag = method[3..];
+        element = element[3..];
 
-        if (Elements.Contains(tag))
+        if (Elements.Contains(element))
         {
-          html = End(tag);
+          html = End((string)element);
         }
         else
         {
-          throw new Exception($"End cannot be used with '{tag}' element.");
+          throw new Html5Exception($"End cannot be used with '{element}' element.");
         }
       }
       else
       {
-        status = false;
+        throw new Html5Exception($"Unrecognized '{element}' element.");
       }
 
       if (fluentMode)
@@ -338,17 +337,26 @@ namespace jbSoft.Reusable
         result = html;
       }
 
-      return status;
+      // Always return true to avoid RuntimeBinderException, since errors will be handled otherwise.
+      return true;
     }
 
 
+    /// <summary>
+    /// Gets the accumulated HTML content.
+    /// </summary>
+    /// <param name="clear">[Optional]If true clears the conetents after retrieval. Defaults to false.</param>
+    /// <returns>
+    /// The accumulated HTML content.
+    /// </returns>
+    /// <exception cref="Html5Exception"></exception>
     public string GetContent(bool clear = false)
     {
       var result = _content;
 
       if (_beginEndStack.Count > 0)
       {
-        throw new Exception($"Missing End() call(s).  Un-ended begins: {string.Join(", ", _beginEndStack)}");
+        throw new Html5Exception($"Missing End*() call(s).  Un-ended begins: {string.Join(", ", _beginEndStack)}");
       }
 
       if (clear)
@@ -421,14 +429,26 @@ namespace jbSoft.Reusable
     }
 
 
-    private static void ParseArgsIntoNameIdAttributes(object?[]? args, out string? nameId, out Attribs? attributes)
+    private static void ParseArgsIntoNameIdAttributes(string element, object?[]? args, out string? nameId, out Attribs? attributes)
     {
       nameId = null;
       attributes = null;
 
-      if (args != null && args.Length >= 1)
+      if (args != null && args.Length > 2)
       {
-        nameId = args[0] as string;
+        // There should be at most two args.
+        throw new Html5Exception($"Too many argument values for {element} element.");
+      }
+      else if (args != null && args.Length >= 1)
+      {
+        if (args[0] == null || args[0] is string)
+        {
+          nameId = args[0] as string;
+        }
+        else
+        {
+          throw new Html5Exception($"Invalid value for {element}'s nameId argument.");
+        }
 
         if (args.Length >= 2)
         {
@@ -440,37 +460,67 @@ namespace jbSoft.Reusable
           {
             attributes = args[1] as Attribs;
           }
+          else
+          {
+            throw new Html5Exception($"Invalid value for {element}'s attributes argument.");
+          }
         }
       }
     }
 
 
-    private static void ParseArgsIntoContentNameIdAttributes(object?[]? args, out string content, out string? nameId, out Attribs? attributes)
+    private static void ParseArgsIntoContentNameIdAttributes(string element, object?[]? args, out string content, out string? nameId, out Attribs? attributes)
     {
       nameId = null;
       attributes = null;
       content = "";
 
-      if (args != null && args.Length >= 1)
+      if (args != null && args.Length > 3)
       {
-        content = args[0] as string ?? "";
-
-        if (args.Length >= 2 && args[1] is string) nameId = args[1] as string;
-
-        if (args.Length >= 3)
+        // There should be at most three args.
+        throw new Html5Exception($"Too many argument values for {element} element.");
+      }
+      else if (args != null && args.Length >= 1)
+      {
+        if (args[0] == null || args[0] is string)
         {
-          if (args[2] is string)
+          content = args[0] as string ?? "";
+        }
+        else
+        {
+          throw new Html5Exception($"Invalid value for {element}'s content argument.");
+        }
+
+        if (args.Length >= 2)
+        {
+          if(args[1] == null || args[1] is string)
           {
-            attributes = new Attribs(args[2] as string);
+            nameId = args[1] as string;
           }
-          else if (args[2] is Attribs)
+          else
           {
-            attributes = args[2] as Attribs;
+            throw new Html5Exception($"Invalid value for {element}'s nameId argument.");
+          }
+
+          if (args.Length >= 3)
+          {
+            if (args[2] is string)
+            {
+              attributes = new Attribs(args[2] as string);
+            }
+            else if (args[2] is Attribs)
+            {
+              attributes = args[2] as Attribs;
+            }
+            else
+            {
+              throw new Html5Exception($"Invalid value for {element}'s attributes argument.");
+            }
           }
         }
       }
     }
-
+    
 
     /// <summary>
     /// Begins an html element with the given tag name.
@@ -487,7 +537,7 @@ namespace jbSoft.Reusable
 
       if (string.IsNullOrEmpty(voidElementResult))
       {
-        throw new Exception("Failed to generate begin element.");
+        throw new Html5Exception("Failed to generate begin element.");
       }
 
       _beginEndStack.Push(tag);
@@ -504,7 +554,7 @@ namespace jbSoft.Reusable
 
       if (endTag != tag)
       {
-        throw new Exception($"End({endTag}) called without a matching Begin(), expecting '{tag}'");
+        throw new Html5Exception($"End({endTag}) called without a matching Begin(), expecting '{tag}'");
       }
 
       return $"</{tag}>\n";
@@ -543,7 +593,7 @@ namespace jbSoft.Reusable
       }
       else
       {
-        throw new Exception("Missing required nameId parameter(s).");
+        throw new Html5Exception("Missing required nameId parameter(s).");
       }
 
       var labelAttribs = new Attribs();
@@ -607,7 +657,7 @@ namespace jbSoft.Reusable
       }
       else
       {
-        throw new Exception("Missing required nameId and/or options parameter(s).");
+        throw new Html5Exception("Missing required nameId and/or options parameter(s).");
       }
 
       var html = VoidElement("datalist", nameId, attributes);
@@ -648,7 +698,7 @@ namespace jbSoft.Reusable
       }
       else
       {
-        throw new Exception("Missing required type and/or nameId parameter(s).");
+        throw new Html5Exception("Missing required type and/or nameId parameter(s).");
       }
 
       attributes["type"] = type;
@@ -682,7 +732,7 @@ namespace jbSoft.Reusable
       }
       else
       {
-        throw new Exception("Missing required label, group, id and/or value parameter(s).");
+        throw new Html5Exception("Missing required label, group, id and/or value parameter(s).");
       }
 
       attributes["type"] = "radio";
@@ -727,7 +777,7 @@ namespace jbSoft.Reusable
       }
       else
       {
-        throw new Exception("Missing required nameId and/or options parameter(s).");
+        throw new Html5Exception("Missing required nameId and/or options parameter(s).");
       }
 
       if (attributes != null && attributes.ContainsKey("Multiple") && !string.IsNullOrEmpty(nameId))
@@ -781,7 +831,7 @@ namespace jbSoft.Reusable
       }
       else
       {
-        throw new Exception("Missing required nameId and/or caption parameter(s).");
+        throw new Html5Exception("Missing required nameId and/or caption parameter(s).");
       }
 
       attributes["Type"] = "submit";
@@ -815,7 +865,7 @@ namespace jbSoft.Reusable
       }
       else
       {
-        throw new Exception("Missing required nameId, text, rows and/or cols parameter(s).");
+        throw new Html5Exception("Missing required nameId, text, rows and/or cols parameter(s).");
       }
 
       attributes["Rows"] = rows.ToString();
@@ -823,5 +873,15 @@ namespace jbSoft.Reusable
 
       return Element("textarea", text, nameId, attributes);
     }
+  }
+
+
+  /// <summary>
+  /// Exceptions thrown by the Html5 class.
+  /// </summary>
+  public class Html5Exception : Exception
+  {
+    public Html5Exception(string message) : base(message)
+    {}
   }
 }
