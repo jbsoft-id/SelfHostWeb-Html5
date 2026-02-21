@@ -1,7 +1,4 @@
 
-using Microsoft.CSharp.RuntimeBinder;
-//using System.Runtime.InteropServices;
-
 using NUnit.Framework;
 
 namespace jbSoft.Reusable.Tests
@@ -109,7 +106,7 @@ namespace jbSoft.Reusable.Tests
 
 
     [Test]
-    public void Element_NotInvalid_ThrowsHtml5Exception()
+    public void TryInvokeMember_InvalidElement_ThrowsHtml5Exception()
     {
       Assert.That(() => _html.Bogus(),
                   Throws.InstanceOf<Html5Exception>().With.Message.EqualTo("Unrecognized 'bogus' element."));
@@ -117,7 +114,7 @@ namespace jbSoft.Reusable.Tests
 
 
     [Test]
-    public void Element_IncorrectArguments_ThrowsHtml5ExceptionWithMessage()
+    public void TryInvokeMember_ElementWithIncorrectArguments_ThrowsHtml5ExceptionWithMessage()
     {
       Assert.Multiple(() =>
       {
@@ -148,7 +145,7 @@ namespace jbSoft.Reusable.Tests
 
 
     [Test]
-    public void VoidElement_NoArgs_CorrectElementIsReturned()
+    public void TryInvokeMember_VoidElementNoArgsFluent_CorrectElementIsReturned()
     {
       //Act
       _html.Area();
@@ -159,27 +156,27 @@ namespace jbSoft.Reusable.Tests
 
 
     [Test]
-    public void VoidElement_NameIdArg_CorrectElementIsReturned()
+    public void TryInvokeMember_VoidElementWithNameIdArgNonfluent_CorrectElementIsReturned()
     {
       //Act
-      _html.Area("myArea");
+      var actual = _html.Area_("myArea");
 
       Assert.Multiple(() =>
       {
         // Assert content starts with the element name.
-        Assert.That(_html.GetContent(), Does.StartWith("<area "));
+        Assert.That(actual, Does.StartWith("<area "));
         // Assert content has appropriate Id attribute.
-        Assert.That(_html.GetContent(), Does.Contain("Id=\"myArea\""));
+        Assert.That(actual, Does.Contain("Id=\"myArea\""));
         // Assert content has appropriate Name attribute.
-        Assert.That(_html.GetContent(), Does.Contain("Name=\"myArea\""));
+        Assert.That(actual, Does.Contain("Name=\"myArea\""));
         // Assert content ends with appropriate ending.
-        Assert.That(_html.GetContent(), Does.EndWith(">\n"));
+        Assert.That(actual, Does.EndWith(">\n"));
       });
     }
 
 
     [Test]
-    public void VoidElement_NameIdNullAttribsArgAsString_CorrectElementIsReturned()
+    public void TryInvokeMember_VoidElementWithNameIdNullAttribsArgAsStringFluent_CorrectElementIsReturned()
     {
       //Act
       _html.Area(null, "shape=circle\n coords=150,50,50");
@@ -203,7 +200,7 @@ namespace jbSoft.Reusable.Tests
 
 
     [Test]
-    public void VoidElement_NameIdEmptyStringAttribsArgAsDictionaryInitializer_CorrectElementIsReturned()
+    public void TryInvokeMember_VoidElementWithEmptyStringNameIdAttribsArgAsInitializerFluent_CorrectElementIsReturned()
     {
       //Act
       _html.Area("", new Attribs { { "Shape", "circle" }, { "Coords", "150,50,50" } });
@@ -227,34 +224,197 @@ namespace jbSoft.Reusable.Tests
 
 
     [Test]
-    public void VoidElement_NameIdAndAttribsArgs_CorrectElementIsReturned()
+    public void TryInvokeMember_VoidElementWithNameIdAndAttribsArgsAsStringNonfluent_CorrectElementIsReturned()
     {
-      _html.Area("myArea", "shape=circle\ncoords=150,50,50");
+      var actual = _html.Area_("myArea", "shape=circle\ncoords=150,50,50");
 
       Assert.Multiple(() =>
       {
         // Assert content starts with the element name.
-        Assert.That(_html.GetContent(), Does.StartWith("<area "));
+        Assert.That(actual, Does.StartWith("<area "));
         // Assert content has appropriate Id attribute.
-        Assert.That(_html.GetContent(), Does.Contain("Id=\"myArea\""));
+        Assert.That(actual, Does.Contain("Id=\"myArea\""));
         // Assert content has appropriate Name attribute.
-        Assert.That(_html.GetContent(), Does.Contain("Name=\"myArea\""));
+        Assert.That(actual, Does.Contain("Name=\"myArea\""));
         // Assert content has appropriate Shape attribute.
-        Assert.That(_html.GetContent(), Does.Contain("Shape=\"circle\""));
+        Assert.That(actual, Does.Contain("Shape=\"circle\""));
         // Assert content has appropriate Coords attribute.
-        Assert.That(_html.GetContent(), Does.Contain("Coords=\"150,50,50\""));
+        Assert.That(actual, Does.Contain("Coords=\"150,50,50\""));
         // Assert content ends with appropriate ending.
-        Assert.That(_html.GetContent(), Does.EndWith(">\n"));
+        Assert.That(actual, Does.EndWith(">\n"));
       });
     }
 
 
-    // AREAS TO TEST
-    // -------------------
-    // Fluent vs Nonfluent
-    // Content Elements
-    // Begin_End
-    // Enhanced Elements
+    [Test]
+    public void TryInvokeMember_FluentVsNonfluent_HaveSameContent()
+    {
+      Assert.Multiple(() =>
+      {
+        // Void elements
+        Assert.That(_html.Br().GetContent(clear: true), Is.EqualTo(_html.Br_()));
+        Assert.That(_html.Area("myArea", "shape=circle\ncoords=150,50,50").GetContent(clear: true), Is.EqualTo(_html.Area_("myArea", "shape=circle\ncoords=150,50,50")));
+
+        // Content elements
+        Assert.That(_html.Span().GetContent(clear: true), Is.EqualTo(_html.Span_()));
+        Assert.That(_html.Span("Content").GetContent(clear: true), Is.EqualTo(_html.Span_("Content")));
+        Assert.That(_html.Span("Content", "nameId").GetContent(clear: true), Is.EqualTo(_html.Span_("Content", "nameId")));
+        Assert.That(_html.Span("Content", "nameId", "style=color: chartreuse;").GetContent(clear: true), Is.EqualTo(_html.Span_("Content", "nameId", "style=color: chartreuse;")));
+      });
+    }
+
+
+    [Test]
+    public void TryInvokeMember_ContentElementNoArgsFluent_CorrectElementIsReturned()
+    {
+      //Act
+      _html.Span();
+
+      // Assert.
+      Assert.That(_html.GetContent(), Is.EqualTo("<span></span>\n"));
+    }
+
+
+    [Test]
+    public void TryInvokeMember_ContentElementWithContentNameIdArgNonfluent_CorrectElementIsReturned()
+    {
+      //Act
+      var actual = _html.Span_("Content", "myId");
+
+      Assert.Multiple(() =>
+      {
+        // Assert content starts with the element name.
+        Assert.That(actual, Does.StartWith("<span "));
+        // Assert content has appropriate Id attribute.
+        Assert.That(actual, Does.Contain("Id=\"myId\""));
+        // Assert content has appropriate Name attribute.
+        Assert.That(actual, Does.Contain("Name=\"myId\""));
+        // Assert content ends with appropriate ending.
+        Assert.That(actual, Does.EndWith(">Content</span>\n"));
+      });
+    }
+
+
+    [Test]
+    public void TryInvokeMember_ContentElementWithContentNameIdNullAttribsArgAsStringFluent_CorrectElementIsReturned()
+    {
+      //Act
+      _html.Span("Content", null, "style=color:blue;");
+
+      Assert.Multiple(() =>
+      {
+        // Assert content starts with the element name.
+        Assert.That(_html.GetContent(), Does.StartWith("<span "));
+        // Assert content has appropriate style attribute.
+        Assert.That(_html.GetContent(), Does.Contain("Style=\"color:blue;\""));
+        // Assert content ends with appropriate ending.
+        Assert.That(_html.GetContent(), Does.EndWith(">Content</span>\n"));
+        // Assert content doesn't have Id attribute.
+        Assert.That(_html.GetContent(), Does.Not.Contain("Id="));
+        // Assert content doesn't have Name attribute.
+        Assert.That(_html.GetContent(), Does.Not.Contain("Name="));
+      });
+    }
+
+
+    [Test]
+    public void TryInvokeMember_ContentElementContentWithEmptyStringNameIdAttribsArgAsInitializerFluent_CorrectElementIsReturned()
+    {
+      //Act
+      _html.Span("", "", new Attribs { { "Style", "color:blue;" } });
+
+      Assert.Multiple(() =>
+      {
+        // Assert content starts with the element name.
+        Assert.That(_html.GetContent(), Does.StartWith("<span "));
+        // Assert content has appropriate style attribute.
+        Assert.That(_html.GetContent(), Does.Contain("Style=\"color:blue;\""));
+        // Assert content ends with appropriate ending.
+        Assert.That(_html.GetContent(), Does.EndWith("></span>\n"));
+        // Assert content doesn't have Id attribute.
+        Assert.That(_html.GetContent(), Does.Not.Contain("Id="));
+        // Assert content doesn't have Name attribute.
+        Assert.That(_html.GetContent(), Does.Not.Contain("Name="));
+      });
+    }
+
+
+    [Test]
+    public void TryInvokeMember_ContentElementContentWithNameIdAndAttribsArgsAsStringNonfluent_CorrectElementIsReturned()
+    {
+      var actual = _html.Span_("Test 123", "myId", "style=color:blue;");
+
+      Assert.Multiple(() =>
+      {
+        // Assert content starts with the element name.
+        Assert.That(actual, Does.StartWith("<span "));
+        // Assert content has appropriate Id attribute.
+        Assert.That(actual, Does.Contain("Id=\"myId\""));
+        // Assert content has appropriate Name attribute.
+        Assert.That(actual, Does.Contain("Name=\"myId\""));
+        // Assert content has appropriate style attribute.
+        Assert.That(actual, Does.Contain("Style=\"color:blue;\""));
+        // Assert content ends with appropriate ending.
+        Assert.That(actual, Does.EndWith(">Test 123</span>\n"));
+      });
+    }
+
+
+    // Begin and End tests
+    [Test]
+    public void TryInvokeMember_ValidBeginCall_ReturnsExpectedContent()
+    {
+      Assert.Multiple(() =>
+      {
+        // Being called with no args.
+        Assert.That(_html.BeginSpan_(), Is.EqualTo("<span>\n").IgnoreCase);
+
+        // Being called with nameId and attribute args.
+        Assert.That(_html.BeginSpan_("nameId", "style = color:blue;"), Does.StartWith("<span").IgnoreCase
+                                                                       .And.Contain("Id=\"nameId\"")
+                                                                       .And.Contain("Name=\"nameId\"")
+                                                                       .And.Contain("Style=\"color:blue;\"").IgnoreCase
+                                                                       .And.EndsWith(">\n"));
+      });
+    }
+
+
+    [Test]
+    public void TryInvokeMember_ValidBeginEndCall_ReturnsExpectedContent()
+    {
+      Assert.That(_html.BeginSpan("nameId")
+                       .AddContent("Test abz.")
+                       .EndSpan()
+                       .GetContent(),
+                  Does.StartWith("<span").IgnoreCase
+                  .And.Contain("Id=\"nameId\"")
+                  .And.Contain("Name=\"nameId\"")
+                  .And.EndsWith(">\nTest abz.\n</span>\n"));
+    }
+
+
+    [Test]
+    public void TryInvokeMember_InvalidEndCalls_ThrowsHtml5Exception()
+    {
+      Assert.Multiple(() =>
+      {
+        // Br is a void element and cannot be used with Begin/End.
+        Assert.That(() => _html.EndBr(),
+                    Throws.InstanceOf<Html5Exception>().With.Message.EqualTo("End cannot be used with 'br' element."));
+        // End called without any previous Begin.
+        Assert.That(() => _html.EndSpan(),
+                    Throws.InstanceOf<Html5Exception>().With.Message.EqualTo("EndSpan called without a matching Begin(). No previous Begin call.").IgnoreCase);
+        // End called without corresponding Begin.
+        Assert.That(() => _html.BeginDiv().EndSpan(),
+                    Throws.InstanceOf<Html5Exception>().With.Message.EqualTo("EndSpan called without a matching Begin(). Expecting EndDiv.").IgnoreCase);
+        // End called without immediately preceeding Begin.
+        Assert.That(() => _html.BeginSpan().BeginDiv().EndSpan(),
+                    Throws.InstanceOf<Html5Exception>().With.Message.EqualTo("EndSpan called without a matching Begin(). Expecting EndDiv.").IgnoreCase);
+      });
+    }
+
+
+    // Enhanced Elements tests
 
   }
 }

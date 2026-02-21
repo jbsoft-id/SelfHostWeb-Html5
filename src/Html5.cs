@@ -546,18 +546,27 @@ namespace jbSoft.Reusable
     }
 
 
-    private string End(string endTag)
+    private string End(string endElement)
     {
-      endTag = endTag.ToLowerInvariant();
+      string element = string.Empty;
 
-      var tag = _beginEndStack.Pop();
+      endElement = endElement.ToLowerInvariant();
 
-      if (endTag != tag)
+      if(_beginEndStack.Count > 0)
       {
-        throw new Html5Exception($"End({endTag}) called without a matching Begin(), expecting '{tag}'");
+        element = _beginEndStack.Pop();
+
+        if (endElement != element)
+        {
+          throw new Html5Exception($"End{endElement} called without a matching Begin(). Expecting End{element}.");
+        }
+      }
+      else
+      {
+        throw new Html5Exception($"End{endElement} called without a matching Begin(). No previous Begin call.");
       }
 
-      return $"</{tag}>\n";
+      return $"</{element}>\n";
     }
 
 
