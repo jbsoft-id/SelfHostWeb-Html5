@@ -143,6 +143,9 @@ using System.Text.RegularExpressions;
 
 namespace jbSoft.Reusable
 {
+  /// <summary>
+  /// A container for attributes for HTML5 elements. 
+  /// </summary>
   public class Attribs : Dictionary<string, string>
   {
     private static Regex _attribPattern = new Regex(@"(?:^|\s*)(?<attrib>[a-zA-Z]+)(?: *= *(?<value>.*?))?(?:\n|$)");
@@ -150,10 +153,23 @@ namespace jbSoft.Reusable
     public const string ID = "Id";
     public const string NAME = "Name";
 
+    /// <summary>
+    /// Constructor.
+    /// </summary>
+    /// <remarks>
+    /// Sets the base class key comparison to ignore case.
+    /// </remarks>
     public Attribs() : base(StringComparer.OrdinalIgnoreCase)
     { }
 
 
+    /// <summary>
+    /// Constructor.  Parses a simple string representation of the attribute key/value pairs.
+    /// </summary>
+    /// <param name="attribs">Simple string representation of the attribute key/value pairs.</param>
+    /// <exception cref="Html5Exception">
+    /// Thrown if there are parse errors.
+    /// </exception>
     public Attribs(string? attribs = null) : this()
     {
       if (attribs != null)
@@ -163,7 +179,6 @@ namespace jbSoft.Reusable
         int currentPosition = 0;
         foreach (Match match in matches)
         {
-          //Console.WriteLine($"HTML5:: {match.Groups["attrib"].Value} = {match.Groups["value"].Value}");
           Add(match.Groups["attrib"].Value, match.Groups["value"].Value);
 
           // Check if the current match starts exactly where the last one ended
@@ -183,6 +198,12 @@ namespace jbSoft.Reusable
     }
 
 
+    /// <summary>
+    /// Returns a string representation of the attributes in an appropriate HTML5 format.
+    /// </summary>
+    /// <returns>
+    /// A string representation of the attributes in an appropriate HTML5 format.
+    /// </returns>
     public override string ToString()
     {
       var attribs = new StringBuilder();
@@ -902,7 +923,7 @@ namespace jbSoft.Reusable
 
 
   /// <summary>
-  /// Exceptions thrown by the Html5 class.
+  /// Exception thrown by the Html5 class.
   /// </summary>
   public class Html5Exception : Exception
   {
