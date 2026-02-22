@@ -200,6 +200,7 @@ namespace jbSoft.Reusable
 
     /// <summary>
     /// Returns a string representation of the attributes in an appropriate HTML5 format.
+    /// Note that the Name and Id attributes are always placed at the beginning of the string.
     /// </summary>
     /// <returns>
     /// A string representation of the attributes in an appropriate HTML5 format.
