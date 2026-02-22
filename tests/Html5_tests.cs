@@ -45,7 +45,7 @@ namespace jbSoft.Reusable.Tests
         // Assert that the attrib string can be parsed into two name/value pairs.
         Assert.That(attribs, Has.Count.EqualTo(2));
         // Assert that a correctly formatted HTML attribute string is returned from ToString().
-        Assert.That(attribs.ToString(), Is.EqualTo(@" Id=""MyId"" Name=""My Name """));
+        Assert.That(attribs.ToString(), Is.EqualTo(@" Name=""My Name "" Id=""MyId"""));
         // Assert that attribute key names are case-insensitive.
         Assert.That(attribs["id"], Is.EqualTo("MyId"));
         Assert.That(attribs["Id"], Is.EqualTo("MyId"));
@@ -70,7 +70,7 @@ namespace jbSoft.Reusable.Tests
       _html = new Html5();
     }
 
-
+    #region AddContent and GetContent tests
     [Test]
     public void AddContentAndGetContent_NoPreviousContent_AddedContentPlusNewLineIsReturned()
     {
@@ -103,8 +103,9 @@ namespace jbSoft.Reusable.Tests
       // Assert that content is returned.
       Assert.That(_html.GetContent(), Is.EqualTo("Line 1\nLine 2\nLast Line\n"));
     }
+    #endregion AddContent and GetContent tests
 
-
+    #region Invalid element or arguments tests
     [Test]
     public void TryInvokeMember_InvalidElement_ThrowsHtml5Exception()
     {
@@ -142,8 +143,32 @@ namespace jbSoft.Reusable.Tests
                     Throws.InstanceOf<Html5Exception>().With.Message.EqualTo("Invalid value for span's attributes argument."));
       });
     }
+    #endregion Invalid element or arguments tests
 
+    #region Fluent vs Nonfluent calls (No contest)
+    [Test]
+    public void TryInvokeMember_FluentVsNonfluent_HaveSameContent()
+    {
+      var id = "myId";
+      var attrib = "style=font-weight: bold;";
+      var content = "My content.";
 
+      Assert.Multiple(() =>
+      {
+        // Void elements
+        Assert.That(_html.Br().GetContent(clear: true), Is.EqualTo(_html.Br_()));
+        Assert.That(_html.Area(id, attrib).GetContent(clear: true), Is.EqualTo(_html.Area_(id, attrib)));
+
+        // Content elements
+        Assert.That(_html.Span().GetContent(clear: true), Is.EqualTo(_html.Span_()));
+        Assert.That(_html.Span(content).GetContent(clear: true), Is.EqualTo(_html.Span_(content)));
+        Assert.That(_html.Span(content, id).GetContent(clear: true), Is.EqualTo(_html.Span_(content, id)));
+        Assert.That(_html.Span(content, id, attrib).GetContent(clear: true), Is.EqualTo(_html.Span_(content, id, attrib)));
+      });
+    }
+    #endregion Fluent vs Nonfluent calls (No contest)
+
+    #region Void element tests
     [Test]
     public void TryInvokeMember_VoidElementNoArgsFluent_CorrectElementIsReturned()
     {
@@ -244,26 +269,9 @@ namespace jbSoft.Reusable.Tests
         Assert.That(actual, Does.EndWith(">\n"));
       });
     }
+    #endregion  Void element tests
 
-
-    [Test]
-    public void TryInvokeMember_FluentVsNonfluent_HaveSameContent()
-    {
-      Assert.Multiple(() =>
-      {
-        // Void elements
-        Assert.That(_html.Br().GetContent(clear: true), Is.EqualTo(_html.Br_()));
-        Assert.That(_html.Area("myArea", "shape=circle\ncoords=150,50,50").GetContent(clear: true), Is.EqualTo(_html.Area_("myArea", "shape=circle\ncoords=150,50,50")));
-
-        // Content elements
-        Assert.That(_html.Span().GetContent(clear: true), Is.EqualTo(_html.Span_()));
-        Assert.That(_html.Span("Content").GetContent(clear: true), Is.EqualTo(_html.Span_("Content")));
-        Assert.That(_html.Span("Content", "nameId").GetContent(clear: true), Is.EqualTo(_html.Span_("Content", "nameId")));
-        Assert.That(_html.Span("Content", "nameId", "style=color: chartreuse;").GetContent(clear: true), Is.EqualTo(_html.Span_("Content", "nameId", "style=color: chartreuse;")));
-      });
-    }
-
-
+    #region Content element tests
     [Test]
     public void TryInvokeMember_ContentElementNoArgsFluent_CorrectElementIsReturned()
     {
@@ -358,22 +366,22 @@ namespace jbSoft.Reusable.Tests
         Assert.That(actual, Does.EndWith(">Test 123</span>\n"));
       });
     }
+    #endregion Content element tests
 
-
-    // Begin and End tests
+    #region Begin and End tests
     [Test]
     public void TryInvokeMember_ValidBeginCall_ReturnsExpectedContent()
     {
       Assert.Multiple(() =>
       {
         // Being called with no args.
-        Assert.That(_html.BeginSpan_(), Is.EqualTo("<span>\n").IgnoreCase);
+        Assert.That(_html.BeginSpan_(), Is.EqualTo("<span>\n"));
 
         // Being called with nameId and attribute args.
-        Assert.That(_html.BeginSpan_("nameId", "style = color:blue;"), Does.StartWith("<span").IgnoreCase
+        Assert.That(_html.BeginSpan_("nameId", "style = color:blue;"), Does.StartWith("<span")
                                                                        .And.Contain("Id=\"nameId\"")
                                                                        .And.Contain("Name=\"nameId\"")
-                                                                       .And.Contain("Style=\"color:blue;\"").IgnoreCase
+                                                                       .And.Contain("Style=\"color:blue;\"")
                                                                        .And.EndsWith(">\n"));
       });
     }
@@ -386,7 +394,7 @@ namespace jbSoft.Reusable.Tests
                        .AddContent("Test abz.")
                        .EndSpan()
                        .GetContent(),
-                  Does.StartWith("<span").IgnoreCase
+                  Does.StartWith("<span")
                   .And.Contain("Id=\"nameId\"")
                   .And.Contain("Name=\"nameId\"")
                   .And.EndsWith(">\nTest abz.\n</span>\n"));
@@ -400,7 +408,7 @@ namespace jbSoft.Reusable.Tests
       {
         // Br is a void element and cannot be used with Begin/End.
         Assert.That(() => _html.EndBr(),
-                    Throws.InstanceOf<Html5Exception>().With.Message.EqualTo("End cannot be used with 'br' element."));
+                    Throws.InstanceOf<Html5Exception>().With.Message.EqualTo("End cannot be used with 'br' element.").IgnoreCase);
         // End called without any previous Begin.
         Assert.That(() => _html.EndSpan(),
                     Throws.InstanceOf<Html5Exception>().With.Message.EqualTo("EndSpan called without a matching Begin(). No previous Begin call.").IgnoreCase);
@@ -412,11 +420,37 @@ namespace jbSoft.Reusable.Tests
                     Throws.InstanceOf<Html5Exception>().With.Message.EqualTo("EndSpan called without a matching Begin(). Expecting EndDiv.").IgnoreCase);
       });
     }
+    #endregion Begin and End tests
 
+    #region Enhanced Elements tests
+    [Test]
+    public void TryInvokeMember_EnhancedElements_ReturnExpectedContent()
+    {
+      var id = "myId";
+      var attrib = "style=color: green;";
+      var text = "My textual content.";
+      var options = new Dictionary<string, string> { {"1", "One"}, {"2", "Two"}, {"9", "End"} };
+      var defVals = new List<string> { "1" };
 
-    // Enhanced Elements tests
+      var eCheckbox = "<label For=\"myId\">Label:</label>\n<input Name=\"myId\" Id=\"myId\" Type=\"checkbox\" Checked Style=\"color: green;\">\n";
+      var eDataList = "<datalist Name=\"myId\" Id=\"myId\" Style=\"color: green;\">\n<option Value=\"One\">One</option>\n<option Value=\"Two\">Two</option>\n<option Value=\"End\">End</option>\n</datalist>\n";
+      var eInput = "<input Name=\"myId\" Id=\"myId\" Style=\"color: green;\" Type=\"Date\" Value=\"1-Jan-2000\">\n";
+      var eRadioButton = "<input Name=\"Group\" Id=\"myId\" Style=\"color: green;\" Type=\"radio\" Value=\"2000\">\n<label For=\"myId\">Label</label>\n";
+      var eSelect = "<select Name=\"myId\" Id=\"myId\" Style=\"color: green;\">\n<option Style=\"display: none;\" Value>Select</option>\n<option Value=\"1\" Selected>One</option>\n<option Value=\"2\">Two</option>\n<option Value=\"9\">End</option>\n</select>\n";
+      var eSubmit = "<input Name=\"myId\" Id=\"myId\" Style=\"color: green;\" Type=\"submit\" Value=\"Caption\">\n";
+      var eTextArea = "<textarea Name=\"myId\" Id=\"myId\" Style=\"color: green;\" Rows=\"5\" Cols=\"40\">My textual content.</textarea>\n";
 
+      Assert.Multiple(() =>
+      {
+        Assert.That(_html.eCheckbox_(id, true, "Label: ", attrib), Is.EqualTo(eCheckbox));
+        Assert.That(_html.eDataList_(id, new List<string> { "One", "Two", "End" }, attrib), Is.EqualTo(eDataList));
+        Assert.That(_html.eInput_("Date", id, "1-Jan-2000", attrib), Is.EqualTo(eInput));
+        Assert.That(_html.eRadioButton_("Label", "Group", id, 2000, attrib), Is.EqualTo(eRadioButton));
+        Assert.That(_html.eSelect_(id, options, defVals, "Select",  attrib), Is.EqualTo(eSelect));
+        Assert.That(_html.eSubmit_(id, "Caption", attrib), Is.EqualTo(eSubmit));
+        Assert.That(_html.eTextArea_(id, text, 5, 40, attrib), Is.EqualTo(eTextArea));
+      });
+    }
+    #endregion Enhanced Elements tests
   }
 }
-
-

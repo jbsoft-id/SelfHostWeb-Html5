@@ -147,6 +147,8 @@ namespace jbSoft.Reusable
   {
     private static Regex _attribPattern = new Regex(@"(?:^|\s*)(?<attrib>[a-zA-Z]+)(?: *= *(?<value>.*?))?(?:\n|$)");
 
+    public const string ID = "Id";
+    public const string NAME = "Name";
 
     public Attribs() : base(StringComparer.OrdinalIgnoreCase)
     { }
@@ -184,9 +186,27 @@ namespace jbSoft.Reusable
     public override string ToString()
     {
       var attribs = new StringBuilder();
+      string? val;
+
+      // Force the name and id attributes to be first.
+      if( TryGetValue(NAME, out val) )
+      {
+        attribs.Append(MakeAttribute(NAME, val));
+      }
+
+      if( TryGetValue(ID, out val) )
+      {
+        attribs.Append(MakeAttribute(ID, val));
+      }
 
       foreach (var kvp in this)
       {
+        if( kvp.Key.Equals(NAME, StringComparison.InvariantCultureIgnoreCase) ||
+            kvp.Key.Equals(ID, StringComparison.InvariantCultureIgnoreCase) )
+        {
+          continue;
+        }
+
         attribs.Append(MakeAttribute(kvp.Key, kvp.Value));
       }
 
@@ -226,11 +246,7 @@ namespace jbSoft.Reusable
   /// </summary>
   public class Html5 : DynamicObject
   {
-    public const string ID = "Id";
-    public const string NAME = "Name";
-
-    // TODO: Convert this to a StringBuilder.
-    private string _content = "";
+    private StringBuilder _content = new();
 
     private static readonly HashSet<string> VoidElements = [
       "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"];
@@ -260,7 +276,7 @@ namespace jbSoft.Reusable
 
     public Html5 AddContent(string content)
     {
-      if (!string.IsNullOrWhiteSpace(content)) _content += $"{content}\n";
+      if (!string.IsNullOrWhiteSpace(content)) _content.Append($"{content}\n");
 
       return this;
     }
@@ -330,7 +346,7 @@ namespace jbSoft.Reusable
 
       if (fluentMode)
       {
-        _content += html;
+        _content.Append(html);
       }
       else
       {
@@ -352,7 +368,7 @@ namespace jbSoft.Reusable
     /// <exception cref="Html5Exception"></exception>
     public string GetContent(bool clear = false)
     {
-      var result = _content;
+      var result = _content.ToString();
 
       if (_beginEndStack.Count > 0)
       {
@@ -361,7 +377,7 @@ namespace jbSoft.Reusable
 
       if (clear)
       {
-        _content = string.Empty;
+        _content.Clear();
       }
 
       return result;
@@ -381,14 +397,14 @@ namespace jbSoft.Reusable
 
       if (!string.IsNullOrEmpty(nameId))
       {
-        if (!attributes.ContainsKey(ID))
+        if (!attributes.ContainsKey(Attribs.ID))
         {
-          attributes[ID] = nameId;
+          attributes[Attribs.ID] = nameId;
         }
 
-        if (!attributes.ContainsKey(NAME))
+        if (!attributes.ContainsKey(Attribs.NAME))
         {
-          attributes[NAME] = nameId;
+          attributes[Attribs.NAME] = nameId;
         }
       }
 
