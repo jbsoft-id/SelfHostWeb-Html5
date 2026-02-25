@@ -27,7 +27,7 @@ namespace jbSoft.Reusable.Tests
     public void Constructor_InvalidStringArg_ThrowsException()
     {
       Assert.That(() => new Attribs("id MyId\n name MyName"),
-                  Throws.InstanceOf<Exception>().With.Message.EqualTo("Error parsing attribute string."));
+                  Throws.InstanceOf<Html5Exception>().With.Message.EqualTo("Error parsing attribute string."));
     }
 
 
@@ -54,6 +54,25 @@ namespace jbSoft.Reusable.Tests
         // Asert that space around the equal sign separating attribute names and values doesn't matter.
         Assert.That(attribs["Name"], Is.EqualTo("My Name "));
       });
+    }
+
+
+    [Test]
+    public void Constructor_EmptyName_ThrowsException()
+    {
+      Assert.That(() => new Attribs("=MyId"),
+                  Throws.InstanceOf<Html5Exception>().With.Message.EqualTo("Error parsing attribute string."));
+    }
+
+
+    [Test]
+    public void Constructor_SingleCharacterName_ReturnsExpectedObject()
+    {
+      // Act
+      var attribs = new Attribs("i=MyId");
+
+      // Assert
+      Assert.That(attribs["i"], Is.EqualTo("MyId"));
     }
   }
 

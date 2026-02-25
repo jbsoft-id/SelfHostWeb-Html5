@@ -257,6 +257,10 @@ namespace jbSoft.Reusable
           result = $" {name}=\"{System.Net.WebUtility.HtmlEncode(value)}\"";
         }
       }
+      else
+      {
+        throw new Html5Exception("Cannot make and attribute without a name.");
+      }
 
       return result;
     }
