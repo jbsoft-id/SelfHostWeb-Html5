@@ -164,7 +164,7 @@ namespace jbSoft.Reusable.Tests
     }
     #endregion Invalid element or arguments tests
 
-    #region Fluent vs Nonfluent calls (No contest)
+    #region Fluent vs Nonfluent calls
     [Test]
     public void TryInvokeMember_FluentVsNonfluent_HaveSameContent()
     {
@@ -185,7 +185,7 @@ namespace jbSoft.Reusable.Tests
         Assert.That(_html.Span(content, id, attrib).GetContent(clear: true), Is.EqualTo(_html.Span_(content, id, attrib)));
       });
     }
-    #endregion Fluent vs Nonfluent calls (No contest)
+    #endregion Fluent vs Nonfluent calls
 
     #region Void element tests
     [Test]
@@ -393,10 +393,10 @@ namespace jbSoft.Reusable.Tests
     {
       Assert.Multiple(() =>
       {
-        // Being called with no args.
+        // Begin called with no args.
         Assert.That(_html.BeginSpan_(), Is.EqualTo("<span>\n"));
 
-        // Being called with nameId and attribute args.
+        // Begin called with nameId and attribute args.
         Assert.That(_html.BeginSpan_("nameId", "style = color:blue;"), Does.StartWith("<span")
                                                                        .And.Contain("Id=\"nameId\"")
                                                                        .And.Contain("Name=\"nameId\"")
