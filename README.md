@@ -5,6 +5,6 @@ The two files of interest are:
 - SelfHostWeb.cs - Implements a simple web server that can be embedded in a C# (console) application.
 - Html5.cs       -  HTML5 code generator.
 
-Both of these files have fairly exensive usage documentation.  The rest of the files are examples that were developed to demonstraight and test the various features.
+Both of these files have fairly extensive usage documentation.  The rest of the files are examples that were developed to demonstraight and test the various features.
 
 **More to come.**
