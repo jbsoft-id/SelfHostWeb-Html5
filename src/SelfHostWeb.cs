@@ -283,39 +283,22 @@ namespace jbSoft.Reusable
         if (!string.IsNullOrWhiteSpace(absPath))
         {
           var httpTrans = FetchHttpTransaction(absPath, context);
-
           if (httpTrans != null)
           {
-            SelfHostWebLog.WriteLine($"Found HttpTransaction: {httpTrans.GetType().Name}");
-
-            try
+            if (httpTrans is IHttpStream)
             {
-              clientRequestedShutdown = !await httpTrans.Process();
-              response.StatusCode = httpTrans.StatusCode;
-              response.ContentType = httpTrans.ContentType;
-              response.ContentLength64 = httpTrans.OutputBuffer.Length;
-              response.OutputStream.Write(httpTrans.OutputBuffer, 0, httpTrans.OutputBuffer.Length);
+              SelfHostWebLog.WriteLine($"Found HttpStream: {httpTrans.GetType().Name}");
+              await InvokeHttpStream(httpTrans, context);
             }
-            catch (Exception ex)
+            else
             {
-              string responseString = $@"<html>
-                <body>
-                  <h1>500 Internal Server Error</h1>
-                  <p>Processing the requested URL {absPath} was not successful.</p>
-                  <pre>{ex}</pre>
-                </body>
-              </html>";
-              byte[] buffer = Encoding.UTF8.GetBytes(responseString);
-
-              response.StatusCode = 500;
-              response.ContentType = "text/html";
-              response.ContentLength64 = buffer.Length;
-              response.OutputStream.Write(buffer, 0, buffer.Length);
+              SelfHostWebLog.WriteLine($"Found HttpTransaction: {httpTrans.GetType().Name}");
+              clientRequestedShutdown = !await InvokeHttpTransaction(httpTrans, context);
             }
           }
-          // Report URL not found.
           else
           {
+            // Report URL not found.
             var additionalInfo = absPath != "/" ? "" : @"<p>You will need to create a subclass of HttpTransaction and 
               decorate it will one or more HttpUri attributes in order to be able to handle web requests.</p>";
             var responseString = $"<html><body><h1>404 Error</h1><p>The requested URL {absPath} was not found!</p>{additionalInfo}</body></html>";
@@ -335,6 +318,40 @@ namespace jbSoft.Reusable
         StopListening(listener);
         SelfHostWebLog.WriteLine($"Listener stopped by client invoking {absPath}");
       }
+    }
+
+    private async Task<bool> InvokeHttpTransaction(HttpTransaction httpTrans, HttpListenerContext context)
+    {
+      bool invocationResult = false;
+      HttpListenerResponse response = context.Response;
+
+      try
+      {
+        invocationResult = await httpTrans.Process();
+        response.StatusCode = httpTrans.StatusCode;
+        response.ContentType = httpTrans.ContentType;
+        response.ContentLength64 = httpTrans.OutputBuffer.Length;
+        response.OutputStream.Write(httpTrans.OutputBuffer, 0, httpTrans.OutputBuffer.Length);
+      }
+      catch (Exception ex)
+      {
+        SelfHostWebLog.WriteLine($"HttpTransaction exception PATH: {httpTrans.AbsolutePath} MESSAGE: {ex.Message}");
+        string responseString = $@"<html>
+                <body>
+                  <h1>500 Internal Server Error</h1>
+                  <p>Processing the requested URL {httpTrans.AbsolutePath} was not successful.</p>
+                  <pre>{ex}</pre>
+                </body>
+              </html>";
+        byte[] buffer = Encoding.UTF8.GetBytes(responseString);
+
+        response.StatusCode = 500;
+        response.ContentType = "text/html";
+        response.ContentLength64 = buffer.Length;
+        response.OutputStream.Write(buffer, 0, buffer.Length);
+      }
+
+      return invocationResult;
     }
 
 
@@ -390,6 +407,28 @@ namespace jbSoft.Reusable
       }
 
       return transaction;
+    }
+
+
+    private async Task InvokeHttpStream(HttpTransaction httpStream, HttpListenerContext context)
+    {
+      SelfHostWebLog.WriteLine($"Found HttpStream: {httpStream.GetType().Name}");
+      HttpListenerResponse response = context.Response;
+
+      try
+      {
+        response.AddHeader("Content-Type", "text/event-stream");
+        response.AddHeader("Cache-Control", "no-cache");
+        response.AddHeader("Access-Control-Allow-Origin", "*");
+        response.KeepAlive = true;
+
+        await httpStream.Process();
+      }
+      catch (Exception ex)
+      {
+        SelfHostWebLog.WriteLine($"HttpStream exception PATH: {httpStream.AbsolutePath} MESSAGE: {ex.Message}");
+        response.StatusCode = 500;
+      }
     }
 
 
@@ -826,6 +865,11 @@ namespace jbSoft.Reusable
     }
   }
 
+
+  public interface IHttpStream
+  {
+
+  }
 
 
   /// <summary>
