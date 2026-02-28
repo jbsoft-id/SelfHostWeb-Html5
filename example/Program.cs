@@ -4,7 +4,7 @@ using jbSoft.Reusable;
 
 public class SimpleWebServer
 {
-  public static int Main(string[] args)
+  public static async Task<int> Main(string[] args)
   {
     SelfHostWebLog.WriteLine = Console.WriteLine;
     
@@ -12,7 +12,7 @@ public class SimpleWebServer
 
     Shutdown.AddRestartUrl = true;
 
-    server.Start();
+    await server.Start();
 
     return 0;
   }
