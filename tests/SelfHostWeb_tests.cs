@@ -24,28 +24,29 @@ namespace jbSoft.Reusable.Tests
     private TestableHttpServer? _httpServer = null;
 
     [TearDown]
-    public void TearDown()
+    public async Task TearDown()
     {
-      _httpServer = null;
+      if (_httpServer != null)
+      {
+        await _httpServer.Stop();
+        _httpServer = null;
+      }
     }
 
 
     [Test]
-    public async Task Start_StartBrowserNull_StartBrowserIsNotInitiated()
+    public void Start_StartBrowserNull_StartBrowserIsNotInitiated()
     {
       // Arrange
       _httpServer = new TestableHttpServer(7000);
 
       // Act
-#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-      Task.Run(() => _httpServer.Start());
-#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-      await Task.Delay(1000);
-      _httpServer.CancelEvent.Set();
+      _httpServer.Start();
 
       // Assert
       Assert.Multiple(() =>
       {
+        Assert.That(_httpServer.IsListening, Is.True);
         Assert.That(_httpServer.HasStartBrowserInitiated, Is.False);
         Assert.That(_httpServer.ListenOn, Is.Empty);
       });
@@ -58,15 +59,12 @@ namespace jbSoft.Reusable.Tests
       _httpServer = new TestableHttpServer(7000);
 
       // Act
-#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-      Task.Run(() => _httpServer.Start(startBrowser: false));
-#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-      await Task.Delay(1000);
-      _httpServer.CancelEvent.Set();
+      _httpServer.Start(startBrowser: false);
 
       // Assert
       Assert.Multiple(() =>
       {
+        Assert.That(_httpServer.IsListening, Is.True);
         Assert.That(_httpServer.HasStartBrowserInitiated, Is.False);
         Assert.That(_httpServer.ListenOn, Is.Empty);
       });
@@ -79,15 +77,12 @@ namespace jbSoft.Reusable.Tests
       _httpServer = new TestableHttpServer(7000);
 
       // Act
-#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-      Task.Run(() => _httpServer.Start(startBrowser: true));
-#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-      await Task.Delay(1000);
-      _httpServer.CancelEvent.Set();
+      _httpServer.Start(startBrowser: true);
 
       // Assert
       Assert.Multiple(() =>
       {
+        Assert.That(_httpServer.IsListening, Is.True);
         Assert.That(_httpServer.HasStartBrowserInitiated, Is.True);
         Assert.That(_httpServer.ListenOn, Is.EqualTo("http://localhost:7000/"));
       });

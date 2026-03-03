@@ -56,7 +56,6 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
-using System.Runtime.InteropServices.Marshalling;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -119,8 +118,10 @@ namespace jbSoft.Reusable
   {
     private int _port;
     private List<(string uri, Type httpTrans)> _httpTransactions = [];
+    private HttpListener? _listener;
     private bool _running = false;
-    public ManualResetEvent CancelEvent { get; } = new(false);
+
+    public bool IsListening { get; private set; } = false;
 
 
     /// <summary>
@@ -180,76 +181,99 @@ namespace jbSoft.Reusable
     /// <param name="startBrowser">[Optional] Indicates whether or not to force a start of the default browser at the URL 
     /// that this server is listening.  Note, that if the port number (optional constructor parameter) is left at zero the
     /// browser will be started regardless of this parameter value.</param>
-    public async Task Start(bool startBrowser = false)
+    public void Start(bool startBrowser = false)
     {
-      const int cancelWaitHandlePosition = 0;
-      const int resultWaitHandlePosition = 1;
-      var waitHandles = new WaitHandle[2];
-      waitHandles[cancelWaitHandlePosition] = CancelEvent;
+      //      using (_listener = new HttpListener())
+      //      {
 
-      using (var listener = new HttpListener())
+      _listener = new HttpListener();
+      _running = true;
+      var strtBrwsr = startBrowser;
+
+      if (_port == 0)
       {
-        _running = true;
-        var strtBrwsr = startBrowser;
+        _port = GetAvailableTcpPort();
 
-        if (_port == 0)
+        // Add a close message to the shutdown response, since we are using an ephemeral port that won't be known
+        // to the user and the browser will be started automatically.
+        Shutdown.AddCloseMsg = true;
+        strtBrwsr = true;
+      }
+
+      var listenOn = $"http://localhost:{_port}/";
+
+      try
+      {
+        _listener.Prefixes.Add(listenOn);
+        _listener.Start();
+        IsListening = true;
+        SelfHostWebLog.WriteLine($"Listening on {listenOn}");
+      }
+      catch (Exception ex)
+      {
+        SelfHostWebLog.WriteLine($"Failed to start listener: {ex}");
+      }
+
+      if (strtBrwsr)
+      {
+        StartBrowser(listenOn);
+      }
+
+      Task.Run(() =>
+      {
+        while (IsListening)
         {
-          _port = GetAvailableTcpPort();
-
-          // Add a close message to the shutdown response, since we are using an ephemeral port that won't be known
-          // to the user and the browser will be started automatically.
-          Shutdown.AddCloseMsg = true;
-          strtBrwsr = true;
+          IAsyncResult result = _listener.BeginGetContext(new AsyncCallback(ListenerCallback), _listener);
         }
+      });
+    }
 
-        var listenOn = $"http://localhost:{_port}/";
 
-        try
+    public async Task Stop()
+    {
+      Debug.Assert(_listener != null);
+      Debug.Assert(IsListening);
+
+      _listener.Stop();
+      _listener.Close();
+
+      for (int wait = 1; wait < 10; wait++)
+      {
+        Console.WriteLine($"{wait} {IsListening}");
+        if (!IsListening)
         {
-          listener.Prefixes.Add(listenOn);
-          listener.Start();
-          SelfHostWebLog.WriteLine($"Listening on {listenOn}");
+          break;
         }
-        catch (Exception ex)
+        else
         {
-          SelfHostWebLog.WriteLine($"Failed to start listener: {ex}");
+          await Task.Delay(500);
         }
-
-        if (strtBrwsr)
-        {
-          StartBrowser(listenOn);
-        }
-
-        while (_running)
-        {
-          Console.WriteLine($"Start 1 {listener.GetHashCode()} {listener.IsListening}");
-
-          IAsyncResult result = listener.BeginGetContext(new AsyncCallback(ListenerCallback), listener);
-          waitHandles[resultWaitHandlePosition] = result.AsyncWaitHandle;
-
-          if (WaitHandle.WaitAny(waitHandles) == cancelWaitHandlePosition)
-          {
-            Console.WriteLine("HttpServer.Start canceled");
-            _running = false;
-          }
-        }
-
-        listener.Stop();
-        Console.WriteLine($"HttpListener stopped  {listener.GetHashCode()} {listener.IsListening}");
       }
     }
 
-    public async void ListenerCallback(IAsyncResult result)
+    private async void ListenerCallback(IAsyncResult result)
     {
+      Console.WriteLine("ListenerCallback start");
+
+      HttpListenerContext? context = null;
       Debug.Assert(result.AsyncState != null);
 
       HttpListener listener = (HttpListener)result.AsyncState;
-      Console.WriteLine($"ListenerCallback {listener.GetHashCode()} {listener.IsListening}");
 
-      if (listener.IsListening)
+      try
       {
         // Call EndGetContext to complete the asynchronous operation.
-        HttpListenerContext context = listener.EndGetContext(result);
+        context = listener.EndGetContext(result);
+      }
+      catch (ObjectDisposedException)
+      {
+        IsListening = false;
+        Console.WriteLine("ListenerCallback ObjectDisposedException");
+        //Intentionally not doing anything with the exception.
+      }
+
+      if (IsListening && context != null)
+      {
 
         HttpListenerRequest request = context.Request;
         var absPath = request.Url?.AbsolutePath;
@@ -305,11 +329,9 @@ namespace jbSoft.Reusable
             response.OutputStream.Write(buffer, 0, buffer.Length);
           }
         }
-
         response.Close();
-
-        return;
       }
+      return;
     }
 
 
