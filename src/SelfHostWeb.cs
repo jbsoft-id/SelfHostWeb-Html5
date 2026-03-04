@@ -191,9 +191,9 @@ namespace jbSoft.Reusable
       {
         cancellationTokenSource.Token.Register(() =>
         {
-          Console.WriteLine("Stop 1");
+          Console.WriteLine("SelfHostWeb cancel delegate about to listener.Stop()");
           listener?.Stop();
-          Console.WriteLine("Stop 2");
+          Console.WriteLine("SelfHostWeb cancel delegate listener.Stop() issued");
         });
 
         _running = true;
@@ -221,6 +221,7 @@ namespace jbSoft.Reusable
         catch (Exception ex)
         {
           SelfHostWebLog.WriteLine($"Failed to start listener: {ex}");
+          throw;
         }
 
         if (strtBrwsr)
@@ -241,9 +242,9 @@ namespace jbSoft.Reusable
           }
         }
 
-        Console.WriteLine("Start exit 1");
+        Console.WriteLine("SelfHostWeb Start about to listener.Close()");
         listener.Close();
-        Console.WriteLine("Start exit 2");
+        Console.WriteLine("SelfHostWeb Start listener.Close() issued");
       }
     }
 
