@@ -6,6 +6,47 @@ namespace jbSoft.Reusable.Tests
   {
     public TestableHttpServer(int port = 0) : base(port) { }
 
+    private CancellationTokenSource _cancellationTokenSource = new();
+
+    public void TestableStart(bool? startBrowser = null)
+    {
+      if (startBrowser == null)
+      {
+        Task.Run(() => { Start(_cancellationTokenSource); });
+      }
+      else
+      {
+        Task.Run(() => { Start(_cancellationTokenSource, (bool)startBrowser); });
+      }
+
+      for (int i = 1; i < 10; i++)
+      {
+        Console.WriteLine($"Act {i}");
+        if (IsListening)
+        {
+          break;
+        }
+        Thread.Sleep(100);
+      }
+
+    }
+
+    public void Stop()
+    {
+      _cancellationTokenSource.Cancel();
+      
+      for (int i = 1; i < 10; i++)
+      {
+        Console.WriteLine($"Teardown {i}");
+        if (!IsListening)
+        {
+          break;
+        }
+
+        Thread.Sleep(100);
+      }
+    }
+
     public bool HasStartBrowserInitiated { get; private set; } = false;
 
     public string ListenOn { get; private set; } = string.Empty;
@@ -24,13 +65,10 @@ namespace jbSoft.Reusable.Tests
     private TestableHttpServer? _httpServer = null;
 
     [TearDown]
-    public async Task TearDown()
+    public void TearDown()
     {
-      if (_httpServer != null)
-      {
-        await _httpServer.Stop();
-        _httpServer = null;
-      }
+      _httpServer?.Stop();
+      _httpServer = null;
     }
 
 
@@ -41,7 +79,7 @@ namespace jbSoft.Reusable.Tests
       _httpServer = new TestableHttpServer(7000);
 
       // Act
-      _httpServer.Start();
+      _httpServer.TestableStart();
 
       // Assert
       Assert.Multiple(() =>
@@ -59,7 +97,7 @@ namespace jbSoft.Reusable.Tests
       _httpServer = new TestableHttpServer(7000);
 
       // Act
-      _httpServer.Start(startBrowser: false);
+      _httpServer.TestableStart(startBrowser: false);
 
       // Assert
       Assert.Multiple(() =>
@@ -71,13 +109,13 @@ namespace jbSoft.Reusable.Tests
     }
 
     [Test]
-    public async Task Start_StartBrowserTrue_StartBrowserIsInitiated()
+    public void Start_StartBrowserTrue_StartBrowserIsInitiated()
     {
       // Arrange
       _httpServer = new TestableHttpServer(7000);
 
       // Act
-      _httpServer.Start(startBrowser: true);
+      _httpServer.TestableStart(startBrowser: true);
 
       // Assert
       Assert.Multiple(() =>

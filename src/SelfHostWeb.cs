@@ -118,7 +118,6 @@ namespace jbSoft.Reusable
   {
     private int _port;
     private List<(string uri, Type httpTrans)> _httpTransactions = [];
-    private HttpListener? _listener;
     private bool _running = false;
 
     public bool IsListening { get; private set; } = false;
@@ -181,80 +180,76 @@ namespace jbSoft.Reusable
     /// <param name="startBrowser">[Optional] Indicates whether or not to force a start of the default browser at the URL 
     /// that this server is listening.  Note, that if the port number (optional constructor parameter) is left at zero the
     /// browser will be started regardless of this parameter value.</param>
-    public void Start(bool startBrowser = false)
+    /// 
+    /// 
+    /// 
+    /// 
+    /// 
+    public void Start(CancellationTokenSource cancellationTokenSource, bool startBrowser = false)
     {
-      //      using (_listener = new HttpListener())
-      //      {
-
-      _listener = new HttpListener();
-      _running = true;
-      var strtBrwsr = startBrowser;
-
-      if (_port == 0)
+      using (var listener = new HttpListener())
       {
-        _port = GetAvailableTcpPort();
+        cancellationTokenSource.Token.Register(() =>
+        {
+          Console.WriteLine("Stop 1");
+          listener?.Stop();
+          Console.WriteLine("Stop 2");
+        });
 
-        // Add a close message to the shutdown response, since we are using an ephemeral port that won't be known
-        // to the user and the browser will be started automatically.
-        Shutdown.AddCloseMsg = true;
-        strtBrwsr = true;
-      }
+        _running = true;
+        var strtBrwsr = startBrowser;
 
-      var listenOn = $"http://localhost:{_port}/";
+        if (_port == 0)
+        {
+          _port = GetAvailableTcpPort();
 
-      try
-      {
-        _listener.Prefixes.Add(listenOn);
-        _listener.Start();
-        IsListening = true;
-        SelfHostWebLog.WriteLine($"Listening on {listenOn}");
-      }
-      catch (Exception ex)
-      {
-        SelfHostWebLog.WriteLine($"Failed to start listener: {ex}");
-      }
+          // Add a close message to the shutdown response, since we are using an ephemeral port that won't be known
+          // to the user and the browser will be started automatically.
+          Shutdown.AddCloseMsg = true;
+          strtBrwsr = true;
+        }
 
-      if (strtBrwsr)
-      {
-        StartBrowser(listenOn);
-      }
+        var listenOn = $"http://localhost:{_port}/";
 
-      Task.Run(() =>
-      {
+        try
+        {
+          listener.Prefixes.Add(listenOn);
+          listener.Start();
+          IsListening = true;
+          SelfHostWebLog.WriteLine($"Listening on {listenOn}");
+        }
+        catch (Exception ex)
+        {
+          SelfHostWebLog.WriteLine($"Failed to start listener: {ex}");
+        }
+
+        if (strtBrwsr)
+        {
+          StartBrowser(listenOn);
+        }
+
         while (IsListening)
         {
-          IAsyncResult result = _listener.BeginGetContext(new AsyncCallback(ListenerCallback), _listener);
+          try
+          {
+            IAsyncResult result = listener.BeginGetContext(new AsyncCallback(ListenerCallback), listener);
+          }
+          catch (ObjectDisposedException)
+          {
+            IsListening = false;
+            //Intentionally not doing anything with the exception.
+          }
         }
-      });
-    }
 
-
-    public async Task Stop()
-    {
-      Debug.Assert(_listener != null);
-      Debug.Assert(IsListening);
-
-      _listener.Stop();
-      _listener.Close();
-
-      for (int wait = 1; wait < 10; wait++)
-      {
-        Console.WriteLine($"{wait} {IsListening}");
-        if (!IsListening)
-        {
-          break;
-        }
-        else
-        {
-          await Task.Delay(500);
-        }
+        Console.WriteLine("Start exit 1");
+        listener.Close();
+        Console.WriteLine("Start exit 2");
       }
     }
+
 
     private async void ListenerCallback(IAsyncResult result)
     {
-      Console.WriteLine("ListenerCallback start");
-
       HttpListenerContext? context = null;
       Debug.Assert(result.AsyncState != null);
 
@@ -265,10 +260,9 @@ namespace jbSoft.Reusable
         // Call EndGetContext to complete the asynchronous operation.
         context = listener.EndGetContext(result);
       }
-      catch (ObjectDisposedException)
+      catch (Exception e) when (e is ObjectDisposedException || e is HttpListenerException)
       {
         IsListening = false;
-        Console.WriteLine("ListenerCallback ObjectDisposedException");
         //Intentionally not doing anything with the exception.
       }
 
