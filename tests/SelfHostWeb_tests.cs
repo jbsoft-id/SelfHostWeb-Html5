@@ -85,6 +85,7 @@ namespace jbSoft.Reusable.Tests
     {
       // Arrange
       _httpServer = new TestableHttpServer(65535);
+      var client = new HttpClient();
 
       // Act
 #pragma warning disable CS4014
@@ -96,7 +97,6 @@ namespace jbSoft.Reusable.Tests
       Assert.That(_httpServer.Port, Is.EqualTo(65535));
       Assert.That(_httpServer.ListenOn, Is.EqualTo("http://localhost:65535/"));
 
-      var client = new HttpClient();
       var response = await client.PostAsync("http://localhost:65535/echo", new StringContent("Hello?"));
       var stringResponse = await response.Content.ReadAsStringAsync();
       Assert.That(stringResponse, Is.EqualTo("I heard Hello?"));
@@ -107,6 +107,7 @@ namespace jbSoft.Reusable.Tests
     public async Task Start_EphemeralPort_HandlesRequest()
     {
       // Arrange
+      var client = new HttpClient();
       _httpServer = new TestableHttpServer();
 
       // Act
@@ -119,7 +120,6 @@ namespace jbSoft.Reusable.Tests
       Assert.That(_httpServer.Port, Is.GreaterThanOrEqualTo(1).And.LessThanOrEqualTo(65535));
       Assert.That(_httpServer.ListenOn, Is.EqualTo($"http://localhost:{_httpServer.Port}/"));
 
-      var client = new HttpClient();
       var response = await client.PostAsync($"http://localhost:{_httpServer.Port}/echo", new StringContent("Hello?"));
       var stringResponse = await response.Content.ReadAsStringAsync();
       Assert.That(stringResponse, Is.EqualTo("I heard Hello?"));
@@ -139,8 +139,8 @@ namespace jbSoft.Reusable.Tests
       Assert.Multiple(() =>
       {
         Assert.That(_httpServer.TryWaitIsListeningState(true), Is.True);
-      Assert.That(_httpServer.Port, Is.EqualTo(7000));
-      Assert.That(_httpServer.ListenOn, Is.EqualTo("http://localhost:7000/"));
+        Assert.That(_httpServer.Port, Is.EqualTo(7000));
+        Assert.That(_httpServer.ListenOn, Is.EqualTo("http://localhost:7000/"));
         Assert.That(_httpServer.HasStartBrowserInitiated, Is.False);
       });
     }
@@ -158,8 +158,8 @@ namespace jbSoft.Reusable.Tests
       Assert.Multiple(() =>
       {
         Assert.That(_httpServer.TryWaitIsListeningState(true), Is.True);
-      Assert.That(_httpServer.Port, Is.EqualTo(7000));
-      Assert.That(_httpServer.ListenOn, Is.EqualTo("http://localhost:7000/"));
+        Assert.That(_httpServer.Port, Is.EqualTo(7000));
+        Assert.That(_httpServer.ListenOn, Is.EqualTo("http://localhost:7000/"));
         Assert.That(_httpServer.HasStartBrowserInitiated, Is.False);
       });
     }
@@ -177,9 +177,34 @@ namespace jbSoft.Reusable.Tests
       Assert.Multiple(() =>
       {
         Assert.That(_httpServer.TryWaitIsListeningState(true), Is.True);
-      Assert.That(_httpServer.Port, Is.EqualTo(7000));
-      Assert.That(_httpServer.ListenOn, Is.EqualTo("http://localhost:7000/"));
+        Assert.That(_httpServer.Port, Is.EqualTo(7000));
+        Assert.That(_httpServer.ListenOn, Is.EqualTo("http://localhost:7000/"));
         Assert.That(_httpServer.HasStartBrowserInitiated, Is.True);
+      });
+    }
+
+
+    [Test]
+    public async Task CancelToken_WhileListening_StopsListening()
+    {
+      // Arrange
+      var client = new HttpClient();
+      _httpServer = new TestableHttpServer(7000);
+#pragma warning disable CS4014
+      Task.Run(() => _httpServer.Start(_httpServer.CancellationTokenSource));
+#pragma warning restore CS4014
+      Assert.That(_httpServer.TryWaitIsListeningState(true), Is.True);
+
+      // Act
+      _httpServer.CancellationTokenSource.Cancel();
+
+      // Assert
+      Assert.Multiple(() =>
+      {
+        Assert.That(_httpServer.TryWaitIsListeningState(false), Is.True);
+        Assert.That(async () => await client.PostAsync("http://localhost:7000/echo", new StringContent("Hello?")),
+                    Throws.InstanceOf<HttpRequestException>().
+                    With.Message.EqualTo("No connection could be made because the target machine actively refused it. (localhost:7000)"));
       });
     }
   }
