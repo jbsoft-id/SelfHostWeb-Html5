@@ -30,12 +30,22 @@ namespace jbSoft.Reusable.Tests
 
     public bool HasStartBrowserInitiated { get; private set; } = false;
 
-    public string ListenOn { get; private set; } = string.Empty;
 
     protected override void StartBrowser(string listenOn)
     {
       HasStartBrowserInitiated = true;
-      ListenOn = listenOn;
+    }
+  }
+
+  [HttpUri("/echo")]
+  public class EchoApi : HttpTransaction
+  {
+    public string? Id { get; set; }
+
+    public async override Task<bool> Process()
+    {
+      Content = $"I heard {GetRequestBody()}";
+      return true;
     }
   }
 
@@ -61,13 +71,60 @@ namespace jbSoft.Reusable.Tests
     public void Start_ConstructedWithInvalidPort_ThrowsXXXXX()
     {
       // Arrange
-      _httpServer = new TestableHttpServer(700000000);
+      _httpServer = new TestableHttpServer(65536);
 
       // Act & Assert
       Assert.That(() => _httpServer.Start(_httpServer.CancellationTokenSource),
                   Throws.InstanceOf<HttpListenerException>().With.Message.EqualTo("The parameter is incorrect."));
 
     }
+
+
+    [Test]
+    public async Task Start_ValidPort_HandlesRequest()
+    {
+      // Arrange
+      _httpServer = new TestableHttpServer(65535);
+
+      // Act
+#pragma warning disable CS4014
+      Task.Run(() => _httpServer.Start(_httpServer.CancellationTokenSource));
+#pragma warning restore CS4014
+
+      // Assert
+      Assert.That(_httpServer.TryWaitIsListeningState(true), Is.True);
+      Assert.That(_httpServer.Port, Is.EqualTo(65535));
+      Assert.That(_httpServer.ListenOn, Is.EqualTo("http://localhost:65535/"));
+
+      var client = new HttpClient();
+      var response = await client.PostAsync("http://localhost:65535/echo", new StringContent("Hello?"));
+      var stringResponse = await response.Content.ReadAsStringAsync();
+      Assert.That(stringResponse, Is.EqualTo("I heard Hello?"));
+    }
+
+
+    [Test]
+    public async Task Start_EphemeralPort_HandlesRequest()
+    {
+      // Arrange
+      _httpServer = new TestableHttpServer();
+
+      // Act
+#pragma warning disable CS4014
+      Task.Run(() => _httpServer.Start(_httpServer.CancellationTokenSource));
+#pragma warning restore CS4014
+
+      // Assert
+      Assert.That(_httpServer.TryWaitIsListeningState(true), Is.True);
+      Assert.That(_httpServer.Port, Is.GreaterThanOrEqualTo(1).And.LessThanOrEqualTo(65535));
+      Assert.That(_httpServer.ListenOn, Is.EqualTo($"http://localhost:{_httpServer.Port}/"));
+
+      var client = new HttpClient();
+      var response = await client.PostAsync($"http://localhost:{_httpServer.Port}/echo", new StringContent("Hello?"));
+      var stringResponse = await response.Content.ReadAsStringAsync();
+      Assert.That(stringResponse, Is.EqualTo("I heard Hello?"));
+    }
+
 
     [Test]
     public void Start_StartBrowserNull_StartBrowserIsNotInitiated()
@@ -82,8 +139,9 @@ namespace jbSoft.Reusable.Tests
       Assert.Multiple(() =>
       {
         Assert.That(_httpServer.TryWaitIsListeningState(true), Is.True);
+      Assert.That(_httpServer.Port, Is.EqualTo(7000));
+      Assert.That(_httpServer.ListenOn, Is.EqualTo("http://localhost:7000/"));
         Assert.That(_httpServer.HasStartBrowserInitiated, Is.False);
-        Assert.That(_httpServer.ListenOn, Is.Empty);
       });
     }
 
@@ -100,8 +158,9 @@ namespace jbSoft.Reusable.Tests
       Assert.Multiple(() =>
       {
         Assert.That(_httpServer.TryWaitIsListeningState(true), Is.True);
+      Assert.That(_httpServer.Port, Is.EqualTo(7000));
+      Assert.That(_httpServer.ListenOn, Is.EqualTo("http://localhost:7000/"));
         Assert.That(_httpServer.HasStartBrowserInitiated, Is.False);
-        Assert.That(_httpServer.ListenOn, Is.Empty);
       });
     }
 
@@ -118,8 +177,9 @@ namespace jbSoft.Reusable.Tests
       Assert.Multiple(() =>
       {
         Assert.That(_httpServer.TryWaitIsListeningState(true), Is.True);
+      Assert.That(_httpServer.Port, Is.EqualTo(7000));
+      Assert.That(_httpServer.ListenOn, Is.EqualTo("http://localhost:7000/"));
         Assert.That(_httpServer.HasStartBrowserInitiated, Is.True);
-        Assert.That(_httpServer.ListenOn, Is.EqualTo("http://localhost:7000/"));
       });
     }
   }

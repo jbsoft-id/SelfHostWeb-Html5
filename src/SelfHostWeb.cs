@@ -116,11 +116,13 @@ namespace jbSoft.Reusable
   /// </summary>
   public class HttpServer
   {
-    private int _port;
     private List<(string uri, Type httpTrans)> _httpTransactions = [];
     private bool _running = false;
 
     public bool IsListening { get; private set; } = false;
+
+    public int Port  { get; private set; } = 0;
+    public string ListenOn { get; private set; } = string.Empty;
 
 
     /// <summary>
@@ -131,7 +133,7 @@ namespace jbSoft.Reusable
     /// available port.</param>
     public HttpServer(int port = 0)
     {
-      _port = port;
+      Port = port;
 
       _httpTransactions = GetClassesOf(typeof(HttpTransaction));
     }
@@ -199,9 +201,9 @@ namespace jbSoft.Reusable
         _running = true;
         var strtBrwsr = startBrowser;
 
-        if (_port == 0)
+        if (Port == 0)
         {
-          _port = GetAvailableTcpPort();
+          Port = GetAvailableTcpPort();
 
           // Add a close message to the shutdown response, since we are using an ephemeral port that won't be known
           // to the user and the browser will be started automatically.
@@ -209,14 +211,14 @@ namespace jbSoft.Reusable
           strtBrwsr = true;
         }
 
-        var listenOn = $"http://localhost:{_port}/";
+        ListenOn = $"http://localhost:{Port}/";
 
         try
         {
-          listener.Prefixes.Add(listenOn);
+          listener.Prefixes.Add(ListenOn);
           listener.Start();
           IsListening = true;
-          SelfHostWebLog.WriteLine($"Listening on {listenOn}");
+          SelfHostWebLog.WriteLine($"Listening on {ListenOn}");
         }
         catch (Exception ex)
         {
@@ -226,7 +228,7 @@ namespace jbSoft.Reusable
 
         if (strtBrwsr)
         {
-          StartBrowser(listenOn);
+          StartBrowser(ListenOn);
         }
 
         while (IsListening)
