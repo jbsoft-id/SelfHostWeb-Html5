@@ -43,7 +43,7 @@ public class AppTemplateBase : HttpTransaction
   }
 
 
-  public override bool Process()
+  public async override Task<bool> Process()
   {
     placeholders["Style"] = Style;
     placeholders["View"] = View;

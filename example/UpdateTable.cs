@@ -8,7 +8,7 @@ using jbSoft.Reusable;
 [HttpUri("/updatetable")]
 public class UpdateTable : HttpTransaction
 {
-  public override bool Process()
+  public async override Task<bool> Process()
   {
     var result = false;
 

@@ -5,10 +5,10 @@ using jbSoft.Reusable;
 [HttpUri("/resttests")]
 public class RestTests : AppTemplateBase
 {
-  public override bool Process()
+  public async override Task<bool> Process()
   {
     View = FetchTemplateFromResource("RestTests.html");
 
-    return base.Process();
+    return await base.Process();
   }
 }

@@ -121,7 +121,7 @@ namespace jbSoft.Reusable
 
     public bool IsListening { get; private set; } = false;
 
-    public int Port  { get; private set; } = 0;
+    public int Port { get; private set; } = 0;
     public string ListenOn { get; private set; } = string.Empty;
 
 
@@ -187,7 +187,7 @@ namespace jbSoft.Reusable
     /// 
     /// 
     /// 
-    public void Start(CancellationTokenSource cancellationTokenSource, bool startBrowser = false)
+    public async Task Start(CancellationTokenSource cancellationTokenSource, bool startBrowser = false)
     {
       using (var listener = new HttpListener())
       {
@@ -236,6 +236,7 @@ namespace jbSoft.Reusable
           try
           {
             IAsyncResult result = listener.BeginGetContext(new AsyncCallback(ListenerCallback), listener);
+            result.AsyncWaitHandle.WaitOne();
           }
           catch (ObjectDisposedException)
           {

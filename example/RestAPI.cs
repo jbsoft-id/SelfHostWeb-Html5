@@ -11,7 +11,7 @@ public class RestApi : HttpTransaction
   public string? Id { get; set; }
 
 
-  public override bool Process()
+  public async override Task<bool> Process()
   {
     ContentType = "application/json";
     Content = JsonSerializer.Serialize(new

@@ -130,7 +130,7 @@ function UpdateTable()
 }";
 
 
-  public override bool Process()
+  public async override Task<bool> Process()
   {
     dynamic html = new Html5();
 
@@ -169,6 +169,6 @@ function UpdateTable()
     .EndDiv()
     .GetContent();
 
-    return base.Process();
+    return await base.Process();
   }
 }
