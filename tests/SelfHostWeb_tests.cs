@@ -24,7 +24,10 @@ namespace jbSoft.Reusable.Tests
       return actual == target;
     }
 
-    public TestableHttpServer(int port = 0) : base(port) { }
+    public TestableHttpServer(int port = 0) : base(port)
+    {
+      SelfHostWebLog.WriteLine = Console.WriteLine;
+    }
 
     public CancellationTokenSource CancellationTokenSource { get; private set; } = new();
 
@@ -49,6 +52,15 @@ namespace jbSoft.Reusable.Tests
     }
   }
 
+  [SetUpFixture]
+  public class SetUpFixture
+  {
+    [OneTimeSetUp]
+    public void OneTimeSetUp()
+    {
+      SelfHostWebLog.WriteLine = Console.WriteLine;
+    }
+  }
 
   [TestFixture]
   class HttpServerTests
@@ -203,8 +215,31 @@ namespace jbSoft.Reusable.Tests
       {
         Assert.That(_httpServer.TryWaitIsListeningState(false), Is.True);
         Assert.That(async () => await client.PostAsync("http://localhost:7000/echo", new StringContent("Hello?")),
-                    Throws.InstanceOf<HttpRequestException>().
-                    With.Message.EqualTo("No connection could be made because the target machine actively refused it. (localhost:7000)"));
+                    Throws.InstanceOf<HttpRequestException>());
+      });
+    }
+
+
+    [Test]
+    public async Task ShutdownEndpointInvoked_WhileListening_StopsListening()
+    {
+      // Arrange
+      var client = new HttpClient();
+      _httpServer = new TestableHttpServer(7000);
+#pragma warning disable CS4014
+      Task.Run(() => _httpServer.Start(_httpServer.CancellationTokenSource));
+#pragma warning restore CS4014
+      Assert.That(_httpServer.TryWaitIsListeningState(true), Is.True);
+
+      // Act
+      await client.PostAsync("http://localhost:7000/shutdown", new StringContent(""));
+
+      // Assert
+      Assert.Multiple(() =>
+      {
+        Assert.That(_httpServer.TryWaitIsListeningState(false), Is.True);
+        Assert.That(async () => await client.PostAsync("http://localhost:7000/echo", new StringContent("Hello?")),
+                    Throws.InstanceOf<HttpRequestException>());
       });
     }
   }

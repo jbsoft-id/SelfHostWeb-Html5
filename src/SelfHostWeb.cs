@@ -117,7 +117,6 @@ namespace jbSoft.Reusable
   public class HttpServer
   {
     private List<(string uri, Type httpTrans)> _httpTransactions = [];
-    private bool _running = false;
 
     public bool IsListening { get; private set; } = false;
 
@@ -193,12 +192,11 @@ namespace jbSoft.Reusable
       {
         cancellationTokenSource.Token.Register(() =>
         {
-          Console.WriteLine("SelfHostWeb cancel delegate about to listener.Stop()");
           listener?.Stop();
-          Console.WriteLine("SelfHostWeb cancel delegate listener.Stop() issued");
+          IsListening = false;
+          SelfHostWebLog.WriteLine("Listener stopped by CancellationTokenSource");
         });
 
-        _running = true;
         var strtBrwsr = startBrowser;
 
         if (Port == 0)
@@ -233,30 +231,23 @@ namespace jbSoft.Reusable
 
         while (IsListening)
         {
-          try
-          {
-            IAsyncResult result = listener.BeginGetContext(new AsyncCallback(ListenerCallback), listener);
-            result.AsyncWaitHandle.WaitOne();
-          }
-          catch (ObjectDisposedException)
-          {
-            IsListening = false;
-            //Intentionally not doing anything with the exception.
-          }
+          IAsyncResult result = listener.BeginGetContext(new AsyncCallback(ListenerCallback), listener);
+          result.AsyncWaitHandle.WaitOne();
         }
 
-        Console.WriteLine("SelfHostWeb Start about to listener.Close()");
         listener.Close();
-        Console.WriteLine("SelfHostWeb Start listener.Close() issued");
+        SelfHostWebLog.WriteLine($"Listener closed");
       }
     }
 
 
     private async void ListenerCallback(IAsyncResult result)
     {
-      HttpListenerContext? context = null;
       Debug.Assert(result.AsyncState != null);
 
+      HttpListenerContext? context = null;
+      bool clientRequestedShutdown = false;
+      string? absPath = string.Empty;
       HttpListener listener = (HttpListener)result.AsyncState;
 
       try
@@ -266,15 +257,14 @@ namespace jbSoft.Reusable
       }
       catch (Exception e) when (e is ObjectDisposedException || e is HttpListenerException)
       {
-        IsListening = false;
-        //Intentionally not doing anything with the exception.
+        // explain...
       }
 
       if (IsListening && context != null)
       {
 
         HttpListenerRequest request = context.Request;
-        var absPath = request.Url?.AbsolutePath;
+        absPath = request.Url?.AbsolutePath;
 
         SelfHostWebLog.WriteLine($"REQUEST: {request.HttpMethod} - {absPath}");
 
@@ -290,7 +280,7 @@ namespace jbSoft.Reusable
 
             try
             {
-              _running = await httpTrans.Process();
+              clientRequestedShutdown = !await httpTrans.Process();
               response.StatusCode = httpTrans.StatusCode;
               response.ContentType = httpTrans.ContentType;
               response.ContentLength64 = httpTrans.OutputBuffer.Length;
@@ -329,7 +319,13 @@ namespace jbSoft.Reusable
         }
         response.Close();
       }
-      return;
+
+      if (clientRequestedShutdown)
+      {
+        listener.Stop();
+        IsListening = false;
+        SelfHostWebLog.WriteLine($"Listener stopped by client invoking {absPath}");
+      }
     }
 
 
