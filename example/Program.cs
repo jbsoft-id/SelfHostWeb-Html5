@@ -4,15 +4,28 @@ using jbSoft.Reusable;
 
 public class SimpleWebServer
 {
-  public static int Main(string[] args)
+  public static async Task<int> Main(string[] args)
   {
     SelfHostWebLog.WriteLine = Console.WriteLine;
-    
+    CancellationTokenSource cancellationTokenSource = new();
+
+    AppDomain.CurrentDomain.ProcessExit += async (sender, eventArgs) =>
+    {
+      SelfHostWebLog.WriteLine("ProcessExit signal received. Initiating shutdown...");
+      cancellationTokenSource.Cancel();
+    };
+
+    Console.CancelKeyPress += async (sender, eventArgs) =>
+    {
+      SelfHostWebLog.WriteLine("Ctrl+C signal received. Initiating shutdown...");
+      cancellationTokenSource.Cancel();
+    };
+
     var server = new HttpServer(7000);
 
     Shutdown.AddRestartUrl = true;
 
-    server.Start();
+    await server.Start(cancellationTokenSource);
 
     return 0;
   }
