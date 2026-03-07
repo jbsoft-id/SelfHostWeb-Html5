@@ -6,8 +6,8 @@ public class SimpleWebServer
 {
   public static async Task<int> Main(string[] args)
   {
-    CancellationTokenSource cancellationTokenSource = new();
     SelfHostWebLog.WriteLine = Console.WriteLine;
+    CancellationTokenSource cancellationTokenSource = new();
 
     AppDomain.CurrentDomain.ProcessExit += async (sender, eventArgs) =>
     {
