@@ -27,15 +27,17 @@ that defaults to zero, which means that the server should determine the port to 
 server to open the default browser to the base URL for the server (e.g. http://localhost:nnnnn/) when Start() is 
 called.  This is helpful since the user won't know the port number unless it is somehow conveyed to them.
 
+If a port number is passed to the constructor and it is available, the browser won't be automatically started
+when the Start method is invoked unless the optional startBrowser parameter is passed in and set to true. 
+However, since the port number is known, the URL is also known to the user.
+
 Another option is to override the StartBrowser() method to launch a client application other than the default 
 browser or to pass special start parameters to the browser.
 
-If a port number is passed to the constructor and it is available, the browser won't be automatically started
-when the Start method is invoked unless the optional startBrowser parameter is passed in and set to true. 
-However, since the port number is know, the URL is also known to the user.
-
 It should also be noted that the HttpServer runs on the thread that invokes Start() and thus will block that 
-thread until the server is shutdown.  See the /shutdown URL below.
+thread until the server is shutdown, which can occur in two ways: 1) The Start() method has a CancelationTokenSource
+parameter which can be used to stop the HttpServer as part of standard process termination, and 2) the client
+can cause the process to terminate by invoking the /shutdown URL as noted below.
 
 Two URLs are supported by out of the box.
   * /favicon.ico -  Which is commonly requested by modern browsers will work *if* a favicon.ico file is included in 
@@ -118,9 +120,20 @@ namespace jbSoft.Reusable
   {
     private List<(string uri, Type httpTrans)> _httpTransactions = [];
 
+
+    /// <summary>
+    /// Gets an indication of whether the HttpServer is listening for requests.
+    /// </summary>
     public bool IsListening { get; private set; } = false;
 
+    /// <summary>
+    /// Gets the port on which the HttpServer is listening.
+    /// </summary>
     public int Port { get; private set; } = 0;
+
+    /// <summary>
+    /// Gets the URL on which the HttpServer is listening.
+    /// </summary>
     public string ListenOn { get; private set; } = string.Empty;
 
 
@@ -178,22 +191,20 @@ namespace jbSoft.Reusable
     /// <summary>
     /// Start running the Http Server.
     /// </summary>
+    /// <param name="cancellationTokenSource">Provides a means of stopping the HttpServer as part of standard
+    /// process termination.
+    /// </param>
     /// <param name="startBrowser">[Optional] Indicates whether or not to force a start of the default browser at the URL 
     /// that this server is listening.  Note, that if the port number (optional constructor parameter) is left at zero the
-    /// browser will be started regardless of this parameter value.</param>
-    /// 
-    /// 
-    /// 
-    /// 
-    /// 
+    /// browser will be started regardless of this parameter value.  The protected StartBrowser() method can be overridden
+    /// to launch a client application other than the default browser or to pass special start parameters to the browser.
     public async Task Start(CancellationTokenSource cancellationTokenSource, bool startBrowser = false)
     {
       using (var listener = new HttpListener())
       {
         cancellationTokenSource.Token.Register(() =>
         {
-          listener?.Stop();
-          IsListening = false;
+          StopListening(listener);
           SelfHostWebLog.WriteLine("Listener stopped by CancellationTokenSource");
         });
 
@@ -322,8 +333,7 @@ namespace jbSoft.Reusable
 
       if (clientRequestedShutdown)
       {
-        listener.Stop();
-        IsListening = false;
+        StopListening(listener);
         SelfHostWebLog.WriteLine($"Listener stopped by client invoking {absPath}");
       }
     }
@@ -416,6 +426,15 @@ namespace jbSoft.Reusable
       {
         SelfHostWebLog.WriteLine($"Failed to start browser: {ex.Message}");
       }
+    }
+
+
+    private void StopListening(HttpListener listener)
+    {
+      listener.Stop();
+      IsListening = false;
+      Port = 0;
+      ListenOn = string.Empty;
     }
   }
 
