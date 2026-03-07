@@ -242,8 +242,16 @@ namespace jbSoft.Reusable
 
         while (IsListening)
         {
-          IAsyncResult result = listener.BeginGetContext(new AsyncCallback(ListenerCallback), listener);
-          result.AsyncWaitHandle.WaitOne();
+          try
+          {
+            IAsyncResult result = listener.BeginGetContext(new AsyncCallback(ListenerCallback), listener);
+            result.AsyncWaitHandle.WaitOne();
+          }
+          catch (Exception e) when (e is ObjectDisposedException || e is HttpListenerException)
+          {
+            // Forgive exception caused by threads being released from thread pool when 
+            // the HttpListener is closed.
+          }
         }
 
         listener.Close();
@@ -268,12 +276,12 @@ namespace jbSoft.Reusable
       }
       catch (Exception e) when (e is ObjectDisposedException || e is HttpListenerException)
       {
-        // explain...
+        // Forgive exception caused by threads being released from thread pool when 
+        // the HttpListener is closed.
       }
 
       if (IsListening && context != null)
       {
-
         HttpListenerRequest request = context.Request;
         absPath = request.Url?.AbsolutePath;
 
@@ -431,10 +439,13 @@ namespace jbSoft.Reusable
 
     private void StopListening(HttpListener listener)
     {
-      listener.Stop();
-      IsListening = false;
-      Port = 0;
-      ListenOn = string.Empty;
+      if (IsListening)
+      {
+        listener.Stop();
+        IsListening = false;
+        Port = 0;
+        ListenOn = string.Empty;
+      }
     }
   }
 
