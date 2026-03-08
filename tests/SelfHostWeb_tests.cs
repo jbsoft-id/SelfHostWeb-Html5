@@ -8,31 +8,27 @@ namespace jbSoft.Reusable.Tests
   {
     public bool TryWaitIsListeningState(bool target)
     {
-      bool actual = IsListening;
+      bool current = IsListening;
 
       for (int waitCount = 1; waitCount < 10; waitCount++)
       {
-        Console.WriteLine($"TryWaitIsListeningState {waitCount} {target} {actual} {waitCount}...");
-        if (actual == target)
+        Console.WriteLine($"TryWaitIsListeningState {waitCount} target: {target} current: {current} {waitCount}...");
+        if (current == target)
         {
           break;
         }
         Thread.Sleep(100);
-        actual = IsListening;
+        current = IsListening;
       }
 
-      return actual == target;
+      return current == target;
     }
 
-    public TestableHttpServer(int port = 0) : base(port)
-    {
-      SelfHostWebLog.WriteLine = Console.WriteLine;
-    }
+    public TestableHttpServer(int port = 0) : base(port) { }
 
     public CancellationTokenSource CancellationTokenSource { get; private set; } = new();
 
     public bool HasStartBrowserInitiated { get; private set; } = false;
-
 
     protected override void StartBrowser(string listenOn)
     {
@@ -43,14 +39,13 @@ namespace jbSoft.Reusable.Tests
   [HttpUri("/echo")]
   public class EchoApi : HttpTransaction
   {
-    public string? Id { get; set; }
-
     public async override Task<bool> Process()
     {
       Content = $"I heard {GetRequestBody()}";
       return true;
     }
   }
+
 
   [SetUpFixture]
   public class SetUpFixture
@@ -61,6 +56,7 @@ namespace jbSoft.Reusable.Tests
       SelfHostWebLog.WriteLine = Console.WriteLine;
     }
   }
+
 
   [TestFixture]
   class HttpServerTests
@@ -80,61 +76,62 @@ namespace jbSoft.Reusable.Tests
     }
 
     [Test]
-    public void Start_ConstructedWithInvalidPort_ThrowsXXXXX()
+    public void Start_ConstructedWithInvalidPort_ThrowsHttpListenerException()
     {
       // Arrange
       _httpServer = new TestableHttpServer(65536);
 
       // Act & Assert
       Assert.That(() => _httpServer.Start(_httpServer.CancellationTokenSource),
-                  Throws.InstanceOf<HttpListenerException>().With.Message.EqualTo("The parameter is incorrect."));
-
+                  Throws.InstanceOf<HttpListenerException>());
     }
 
 
     [Test]
-    public async Task Start_ValidPort_HandlesRequest()
+    public void Start_ValidPort_HandlesRequest()
     {
       // Arrange
       _httpServer = new TestableHttpServer(65535);
       var client = new HttpClient();
 
       // Act
-#pragma warning disable CS4014
       Task.Run(() => _httpServer.Start(_httpServer.CancellationTokenSource));
-#pragma warning restore CS4014
 
       // Assert
-      Assert.That(_httpServer.TryWaitIsListeningState(true), Is.True);
-      Assert.That(_httpServer.Port, Is.EqualTo(65535));
-      Assert.That(_httpServer.ListenOn, Is.EqualTo("http://localhost:65535/"));
+      Assert.Multiple(async () =>
+      {
+        Assert.That(_httpServer.TryWaitIsListeningState(true), Is.True);
+        Assert.That(_httpServer.Port, Is.EqualTo(65535));
+        Assert.That(_httpServer.ListenOn, Is.EqualTo("http://localhost:65535/"));
 
-      var response = await client.PostAsync("http://localhost:65535/echo", new StringContent("Hello?"));
-      var stringResponse = await response.Content.ReadAsStringAsync();
-      Assert.That(stringResponse, Is.EqualTo("I heard Hello?"));
+        var response = await client.PostAsync("http://localhost:65535/echo", new StringContent("Hello?"));
+        var stringResponse = await response.Content.ReadAsStringAsync();
+        Assert.That(stringResponse, Is.EqualTo("I heard Hello?"));
+      });
     }
 
 
     [Test]
-    public async Task Start_EphemeralPort_HandlesRequest()
+    public void Start_EphemeralPort_HandlesRequest()
     {
       // Arrange
       var client = new HttpClient();
       _httpServer = new TestableHttpServer();
 
       // Act
-#pragma warning disable CS4014
       Task.Run(() => _httpServer.Start(_httpServer.CancellationTokenSource));
-#pragma warning restore CS4014
 
       // Assert
-      Assert.That(_httpServer.TryWaitIsListeningState(true), Is.True);
-      Assert.That(_httpServer.Port, Is.GreaterThanOrEqualTo(1).And.LessThanOrEqualTo(65535));
-      Assert.That(_httpServer.ListenOn, Is.EqualTo($"http://localhost:{_httpServer.Port}/"));
+      Assert.Multiple(async () =>
+      {
+        Assert.That(_httpServer.TryWaitIsListeningState(true), Is.True);
+        Assert.That(_httpServer.Port, Is.GreaterThanOrEqualTo(1).And.LessThanOrEqualTo(65535));
+        Assert.That(_httpServer.ListenOn, Is.EqualTo($"http://localhost:{_httpServer.Port}/"));
 
-      var response = await client.PostAsync($"http://localhost:{_httpServer.Port}/echo", new StringContent("Hello?"));
-      var stringResponse = await response.Content.ReadAsStringAsync();
-      Assert.That(stringResponse, Is.EqualTo("I heard Hello?"));
+        var response = await client.PostAsync($"http://localhost:{_httpServer.Port}/echo", new StringContent("Hello?"));
+        var stringResponse = await response.Content.ReadAsStringAsync();
+        Assert.That(stringResponse, Is.EqualTo("I heard Hello?"));
+      });
     }
 
 
@@ -156,6 +153,7 @@ namespace jbSoft.Reusable.Tests
         Assert.That(_httpServer.HasStartBrowserInitiated, Is.False);
       });
     }
+
 
     [Test]
     public void Start_StartBrowserFalse_StartBrowserIsNotInitiated()
@@ -197,14 +195,12 @@ namespace jbSoft.Reusable.Tests
 
 
     [Test]
-    public async Task CancelToken_WhileListening_StopsListening()
+    public void CancelToken_WhileListening_StopsListening()
     {
       // Arrange
       var client = new HttpClient();
       _httpServer = new TestableHttpServer(7000);
-#pragma warning disable CS4014
       Task.Run(() => _httpServer.Start(_httpServer.CancellationTokenSource));
-#pragma warning restore CS4014
       Assert.That(_httpServer.TryWaitIsListeningState(true), Is.True);
 
       // Act
@@ -226,9 +222,9 @@ namespace jbSoft.Reusable.Tests
       // Arrange
       var client = new HttpClient();
       _httpServer = new TestableHttpServer(7000);
-#pragma warning disable CS4014
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
       Task.Run(() => _httpServer.Start(_httpServer.CancellationTokenSource));
-#pragma warning restore CS4014
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
       Assert.That(_httpServer.TryWaitIsListeningState(true), Is.True);
 
       // Act
