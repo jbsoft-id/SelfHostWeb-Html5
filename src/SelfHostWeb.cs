@@ -152,7 +152,7 @@ namespace jbSoft.Reusable
 
       // Find all classes that inherit from base class HttpTransaction.
       var derivedClasses = currentAssembly.GetTypes().Where(type => !type.IsAbstract &&
-                                                           type.IsSubclassOf(typeof(HttpTransaction))
+                                                            type.IsSubclassOf(typeof(HttpTransaction))
                                                             // The following line will exclude all but the default HttpTransaction types.
                                                             //&& type.FullName.StartsWith("jbSoft.Reusable.")
                                                             );
