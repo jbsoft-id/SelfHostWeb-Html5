@@ -147,25 +147,17 @@ namespace jbSoft.Reusable
     {
       Port = port;
 
-      _httpTransactions = GetClassesOf(typeof(HttpTransaction));
-    }
-
-
-    private List<(string, Type)> GetClassesOf(Type targetType)
-    {
-      List<(string, Type)> classes = [];
-
       // Get all types from the current assembly
       Assembly currentAssembly = Assembly.GetExecutingAssembly();
 
       // Find all classes that inherit from base class HttpTransaction.
       var derivedClasses = currentAssembly.GetTypes().Where(type => !type.IsAbstract &&
-                                                            type.IsSubclassOf(targetType)
+                                                           type.IsSubclassOf(typeof(HttpTransaction))
                                                             // The following line will exclude all but the default HttpTransaction types.
                                                             //&& type.FullName.StartsWith("jbSoft.Reusable.")
                                                             );
 
-      SelfHostWebLog.WriteLine($"Classes inheriting from {targetType}:");
+      SelfHostWebLog.WriteLine("Classes inheriting from HttpTransaction:");
       foreach (Type type in derivedClasses)
       {
         var first = true;
@@ -180,11 +172,9 @@ namespace jbSoft.Reusable
 
           SelfHostWebLog.WriteLine($"  > {attr.Uri}");
 
-          classes.Add((attr.Uri, type));
+          _httpTransactions.Add((attr.Uri, type));
         }
       }
-
-      return classes;
     }
 
 
