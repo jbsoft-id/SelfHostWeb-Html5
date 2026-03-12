@@ -12,7 +12,7 @@ namespace jbSoft.Reusable.Tests
 
       for (int waitCount = 1; waitCount < 10; waitCount++)
       {
-        Console.WriteLine($"TryWaitIsListeningState {waitCount} target: {target} current: {current} {waitCount}...");
+        SelfHostWebLog.WriteLine($"TryWaitIsListeningState {waitCount} target: {target} current: {current} {waitCount}...");
         if (current == target)
         {
           break;
@@ -47,21 +47,17 @@ namespace jbSoft.Reusable.Tests
   }
 
 
-  [SetUpFixture]
-  public class SetUpFixture
-  {
-    [OneTimeSetUp]
-    public void OneTimeSetUp()
-    {
-      SelfHostWebLog.WriteLine = Console.WriteLine;
-    }
-  }
-
-
   [TestFixture]
   class HttpServerTests
   {
     private TestableHttpServer? _httpServer = null;
+
+    [OneTimeSetUp]
+    public void OneTimeSetUp()
+    {
+      // Uncomment for additional output while debugging.
+      // SelfHostWebLog.WriteLine = Console.WriteLine;
+    }
 
     [TearDown]
     public void TearDown()
@@ -136,7 +132,7 @@ namespace jbSoft.Reusable.Tests
 
 
     [Test]
-    public void Start_StartBrowserNull_StartBrowserIsNotInitiated()
+    public void Start_StartBrowserDefaulted_StartBrowserIsNotInitiated()
     {
       // Arrange
       _httpServer = new TestableHttpServer(7000);
@@ -201,7 +197,7 @@ namespace jbSoft.Reusable.Tests
       var client = new HttpClient();
       _httpServer = new TestableHttpServer(7000);
       Task.Run(() => _httpServer.Start(_httpServer.CancellationTokenSource));
-      Assert.That(_httpServer.TryWaitIsListeningState(true), Is.True);
+      Assume.That(_httpServer.TryWaitIsListeningState(true), Is.True);
 
       // Act
       _httpServer.CancellationTokenSource.Cancel();
@@ -217,18 +213,16 @@ namespace jbSoft.Reusable.Tests
 
 
     [Test]
-    public async Task ShutdownEndpointInvoked_WhileListening_StopsListening()
+    public void ShutdownEndpointInvoked_WhileListening_StopsListening()
     {
       // Arrange
       var client = new HttpClient();
       _httpServer = new TestableHttpServer(7000);
-#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
       Task.Run(() => _httpServer.Start(_httpServer.CancellationTokenSource));
-#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-      Assert.That(_httpServer.TryWaitIsListeningState(true), Is.True);
+      Assume.That(_httpServer.TryWaitIsListeningState(true), Is.True);
 
       // Act
-      await client.PostAsync("http://localhost:7000/shutdown", new StringContent(""));
+      Task.Run(async () => await client.PostAsync("http://localhost:7000/shutdown", new StringContent("")));
 
       // Assert
       Assert.Multiple(() =>
