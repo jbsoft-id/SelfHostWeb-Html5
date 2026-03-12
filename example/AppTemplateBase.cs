@@ -2,7 +2,7 @@
 using jbSoft.Reusable;
 
 
-public class AppTemplateBase : HttpTransaction
+public class AppTemplateBase : HttpOperation
 {
   public string Style { get; set; } = "";
   public string View { get; set; } = "";

@@ -3,7 +3,7 @@ using jbSoft.Reusable;
 
 
 [HttpUri("/logo.png")]
-public class Logo : HttpTransaction
+public class Logo : HttpOperation
 {
   public override Task<bool> Process()
   {

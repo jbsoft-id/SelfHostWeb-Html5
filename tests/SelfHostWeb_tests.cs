@@ -37,7 +37,7 @@ namespace jbSoft.Reusable.Tests
   }
 
   [HttpUri("/echo")]
-  public class EchoApi : HttpTransaction
+  public class EchoApi : HttpOperation
   {
     public override Task<bool> Process()
     {

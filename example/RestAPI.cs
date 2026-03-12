@@ -6,7 +6,7 @@ using jbSoft.Reusable;
 
 [HttpUri("/rest.api")]
 [HttpUri(@"/rest.api/item/(?<Id>\d+)")]
-public class RestApi : HttpTransaction
+public class RestApi : HttpOperation
 {
   public string? Id { get; set; }
 
