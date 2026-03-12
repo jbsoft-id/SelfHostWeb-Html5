@@ -188,7 +188,7 @@ namespace jbSoft.Reusable
     /// that this server is listening.  Note, that if the port number (optional constructor parameter) is left at zero the
     /// browser will be started regardless of this parameter value.  The protected StartBrowser() method can be overridden
     /// to launch a client application other than the default browser or to pass special start parameters to the browser.
-    public async Task Start(CancellationTokenSource cancellationTokenSource, bool startBrowser = false)
+    public Task Start(CancellationTokenSource cancellationTokenSource, bool startBrowser = false)
     {
       using (var listener = new HttpListener())
       {
@@ -247,6 +247,8 @@ namespace jbSoft.Reusable
         listener.Close();
         SelfHostWebLog.WriteLine($"Listener closed");
       }
+
+      return Task.CompletedTask;
     }
 
 
@@ -583,9 +585,9 @@ namespace jbSoft.Reusable
     /// <returns>
     /// True indicating the server should continue running; false indicating the server should shutdown after this transaction.
     /// </returns>
-    public async virtual Task<bool> Process()
+    public virtual Task<bool> Process()
     {
-      return true;
+      return Task.FromResult(true);
     }
 
 
@@ -828,11 +830,11 @@ namespace jbSoft.Reusable
   [HttpUri("/favicon.ico")]
   public class Favicon : HttpTransaction
   {
-    public async override Task<bool> Process()
+    public override Task<bool> Process()
     {
       LoadContentFromResource("favicon.ico");
 
-      return true;
+      return Task.FromResult(true);
     }
   }
 
@@ -859,7 +861,7 @@ namespace jbSoft.Reusable
     internal static bool AddCloseMsg { get; set; } = false;
 
 
-    public async override Task<bool> Process()
+    public override Task<bool> Process()
     {
       var href = string.IsNullOrWhiteSpace(Request.Headers["Referer"]) ? "/" : Request.Headers["Referer"];
       var extraBodyPart = AddRestartUrl ? $"<a href='{href}'>Restart</a>" : "";
@@ -872,7 +874,7 @@ namespace jbSoft.Reusable
 
       Content = $"<html><body><h1>Shutting Down</h1><p>Server shutdown was requested.</p>{extraBodyPart}</body></html>";
 
-      return false;
+      return Task.FromResult(false);
     }
   }
 }

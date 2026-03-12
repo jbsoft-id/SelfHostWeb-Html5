@@ -9,13 +9,13 @@ public class SimpleWebServer
     SelfHostWebLog.WriteLine = Console.WriteLine;
     CancellationTokenSource cancellationTokenSource = new();
 
-    AppDomain.CurrentDomain.ProcessExit += async (sender, eventArgs) =>
+    AppDomain.CurrentDomain.ProcessExit += (sender, eventArgs) =>
     {
       SelfHostWebLog.WriteLine("ProcessExit signal received. Initiating shutdown...");
       cancellationTokenSource.Cancel();
     };
 
-    Console.CancelKeyPress += async (sender, eventArgs) =>
+    Console.CancelKeyPress += (sender, eventArgs) =>
     {
       SelfHostWebLog.WriteLine("Ctrl+C signal received. Initiating shutdown...");
       cancellationTokenSource.Cancel();

@@ -43,7 +43,7 @@ public class AppTemplateBase : HttpTransaction
   }
 
 
-  public async override Task<bool> Process()
+  public override Task<bool> Process()
   {
     placeholders["Style"] = Style;
     placeholders["View"] = View;
@@ -51,6 +51,6 @@ public class AppTemplateBase : HttpTransaction
 
     Content = FetchTemplateFromResource("AppTemplate.html", placeholders, reportMissingPlaceholders: false);
 
-    return true;
+    return Task.FromResult(true);
   }
 }

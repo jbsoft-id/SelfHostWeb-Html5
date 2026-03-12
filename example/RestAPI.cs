@@ -11,7 +11,7 @@ public class RestApi : HttpTransaction
   public string? Id { get; set; }
 
 
-  public async override Task<bool> Process()
+  public override Task<bool> Process()
   {
     ContentType = "application/json";
     Content = JsonSerializer.Serialize(new
@@ -24,6 +24,6 @@ public class RestApi : HttpTransaction
       status = 1
     }, new JsonSerializerOptions { WriteIndented = true });
 
-    return true;
+    return Task.FromResult(true);
   }
 }
