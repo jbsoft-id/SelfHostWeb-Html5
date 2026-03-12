@@ -100,16 +100,10 @@ namespace jbSoft.Reusable.Tests
         Assert.That(_httpServer.Port, Is.EqualTo(65535));
         Assert.That(_httpServer.ListenOn, Is.EqualTo("http://localhost:65535/"));
 
-<<<<<<< HEAD
         var response = await client.PostAsync("http://localhost:65535/echo", new StringContent("Hello?"));
         var stringResponse = await response.Content.ReadAsStringAsync();
         Assert.That(stringResponse, Is.EqualTo("I heard Hello?"));
       });
-=======
-      var response = await client.PostAsync("http://localhost:65535/echo", new StringContent("Hello?"));
-      var stringResponse = await response.Content.ReadAsStringAsync();
-      Assert.That(stringResponse, Is.EqualTo("I heard Hello?"));
->>>>>>> a0a98d4 (Unit tetst)
     }
 
 
@@ -130,16 +124,10 @@ namespace jbSoft.Reusable.Tests
         Assert.That(_httpServer.Port, Is.GreaterThanOrEqualTo(1).And.LessThanOrEqualTo(65535));
         Assert.That(_httpServer.ListenOn, Is.EqualTo($"http://localhost:{_httpServer.Port}/"));
 
-<<<<<<< HEAD
         var response = await client.PostAsync($"http://localhost:{_httpServer.Port}/echo", new StringContent("Hello?"));
         var stringResponse = await response.Content.ReadAsStringAsync();
         Assert.That(stringResponse, Is.EqualTo("I heard Hello?"));
       });
-=======
-      var response = await client.PostAsync($"http://localhost:{_httpServer.Port}/echo", new StringContent("Hello?"));
-      var stringResponse = await response.Content.ReadAsStringAsync();
-      Assert.That(stringResponse, Is.EqualTo("I heard Hello?"));
->>>>>>> a0a98d4 (Unit tetst)
     }
 
 
@@ -203,24 +191,13 @@ namespace jbSoft.Reusable.Tests
 
 
     [Test]
-<<<<<<< HEAD
     public void CancelToken_WhileListening_StopsListening()
-=======
-    public async Task CancelToken_WhileListening_StopsListening()
->>>>>>> a0a98d4 (Unit tetst)
     {
       // Arrange
       var client = new HttpClient();
       _httpServer = new TestableHttpServer(7000);
-<<<<<<< HEAD
       Task.Run(() => _httpServer.Start(_httpServer.CancellationTokenSource));
       Assume.That(_httpServer.TryWaitIsListeningState(true), Is.True);
-=======
-#pragma warning disable CS4014
-      Task.Run(() => _httpServer.Start(_httpServer.CancellationTokenSource));
-#pragma warning restore CS4014
-      Assert.That(_httpServer.TryWaitIsListeningState(true), Is.True);
->>>>>>> a0a98d4 (Unit tetst)
 
       // Act
       _httpServer.CancellationTokenSource.Cancel();
@@ -230,7 +207,6 @@ namespace jbSoft.Reusable.Tests
       {
         Assert.That(_httpServer.TryWaitIsListeningState(false), Is.True);
         Assert.That(async () => await client.PostAsync("http://localhost:7000/echo", new StringContent("Hello?")),
-<<<<<<< HEAD
                     Throws.InstanceOf<HttpRequestException>());
       });
     }
@@ -254,10 +230,6 @@ namespace jbSoft.Reusable.Tests
         Assert.That(_httpServer.TryWaitIsListeningState(false), Is.True);
         Assert.That(async () => await client.PostAsync("http://localhost:7000/echo", new StringContent("Hello?")),
                     Throws.InstanceOf<HttpRequestException>());
-=======
-                    Throws.InstanceOf<HttpRequestException>().
-                    With.Message.EqualTo("No connection could be made because the target machine actively refused it. (localhost:7000)"));
->>>>>>> a0a98d4 (Unit tetst)
       });
     }
   }
