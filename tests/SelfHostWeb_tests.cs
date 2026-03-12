@@ -39,10 +39,10 @@ namespace jbSoft.Reusable.Tests
   [HttpUri("/echo")]
   public class EchoApi : HttpTransaction
   {
-    public async override Task<bool> Process()
+    public override Task<bool> Process()
     {
       Content = $"I heard {GetRequestBody()}";
-      return true;
+      return Task.FromResult(true);
     }
   }
 
