@@ -34,10 +34,9 @@ However, since the port number is known, the URL is also known to the user.
 Another option is to override the StartBrowser() method to launch a client application other than the default 
 browser or to pass special start parameters to the browser.
 
-It should also be noted that the HttpServer runs on the thread that invokes Start() and thus will block that 
-thread until the server is shutdown, which can occur in two ways: 1) The Start() method has a CancelationTokenSource
-parameter which can be used to stop the HttpServer as part of standard process termination, and 2) the client
-can cause the process to terminate by invoking the /shutdown URL as noted below.
+The server can be shutdown in two ways: 1) The Start() method has a CancelationTokenSource parameter which can be
+used to stop the HttpServer as part of standard process termination, or 2) the client can cause the process to 
+terminate by invoking the /shutdown URL as noted below.
 
 Two URLs are supported by out of the box.
   * /favicon.ico -  Which is commonly requested by modern browsers will work *if* a favicon.ico file is included in 
@@ -132,7 +131,7 @@ namespace jbSoft.Reusable
     public int Port { get; private set; } = 0;
 
     /// <summary>
-    /// Gets the URL on which the HttpServer is listening.
+    /// Gets the base URL on which the HttpServer is listening.
     /// </summary>
     public string ListenOn { get; private set; } = string.Empty;
 
@@ -415,7 +414,12 @@ namespace jbSoft.Reusable
       }
     }
 
-
+    /// <summary>
+    /// Opens the default browser to the base URL for the server when Start() is called.  This method
+    /// can be overridden to launch a client application other than the default browser or to pass special
+    /// start parameters to the browser.
+    /// </summary>
+    /// <param name="listenOn">The base URL on which the HttpServer is listening.</param>
     protected virtual void StartBrowser(string listenOn)
     {
       try
