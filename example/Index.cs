@@ -6,7 +6,7 @@ using jbSoft.Reusable;
 [HttpUri("/index.html")]
 public class Index : AppTemplateBase
 {
-  public override bool Process()
+  public async override Task<bool> Process()
   {
     View = $@"
     <h1>Self Hosted Web Server</h1>
@@ -31,7 +31,7 @@ Method HttpTransaction.GetQueryStringValue(""KeyWithMultiVals"") = {DumpGetQuery
       </pre>
     </div>";
 
-    return base.Process();
+    return await base.Process();
   }
 
 

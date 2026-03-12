@@ -5,7 +5,7 @@ using jbSoft.Reusable;
 [HttpUri("/testhtml5")]
 public class TestHtml5 : AppTemplateBase
 {
-  public override bool Process()
+  public async override Task<bool> Process()
   {
     dynamic html = new Html5();
 
@@ -44,6 +44,6 @@ public class TestHtml5 : AppTemplateBase
     .Label("CSS", null, "for=css")
     .GetContent();
 
-    return base.Process();
+    return await base.Process();
   }
 }

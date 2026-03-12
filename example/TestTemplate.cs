@@ -5,7 +5,7 @@ using jbSoft.Reusable;
 [HttpUri("/testtemplate")]
 public class TemplateTest : AppTemplateBase
 {
-  public override bool Process()
+  public async override Task<bool> Process()
   {
     var pv1 = new PlaceholderValues { {"NAME", "Bob"}, {"DATE", "30-Nov-2025"}, {"SIGNATURE", "Staff"} };
     var pv2 = new PlaceholderValues { {"NAME", "Bob"}, {"WHEN", "30-Nov-2025"}, {"SIGNATURE", "Staff"} };
@@ -83,6 +83,6 @@ public class TemplateTest : AppTemplateBase
   <li>Further examples of PlaceholderValue name case mis-matching not mattering.</li>
 </ul>";
 
-    return base.Process();
+    return await base.Process();
   }
 }

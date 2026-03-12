@@ -8,7 +8,7 @@ using jbSoft.Reusable;
 [HttpUri("/postform.html")]
 public class PostForm : AppTemplateBase
 {
-  public override bool Process()
+  public async override Task<bool> Process()
   {
     var entityBody = GetRequestBody() ?? "";
     var placeholderValues = new PlaceholderValues
@@ -20,7 +20,7 @@ public class PostForm : AppTemplateBase
 
     View = FetchTemplateFromResource("PostForm.html", placeholderValues);
 
-    return base.Process();
+    return await base.Process();
   }
 
 

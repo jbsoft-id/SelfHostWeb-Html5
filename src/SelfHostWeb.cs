@@ -29,10 +29,14 @@ called.  This is helpful since the user won't know the port number unless it is 
 
 If a port number is passed to the constructor and it is available, the browser won't be automatically started
 when the Start method is invoked unless the optional startBrowser parameter is passed in and set to true. 
-However, since the port number is know, the URL is also known to the user.
+However, since the port number is known, the URL is also known to the user.
 
-It should also be noted that the HttpServer runs on the thread that invokes Start() and thus will block that 
-thread until the server is shutdown.  See the /shutdown URL below.
+Another option is to override the StartBrowser() method to launch a client application other than the default 
+browser or to pass special start parameters to the browser.
+
+The server can be shutdown in two ways: 1) The Start() method has a CancelationTokenSource parameter which can be
+used to stop the HttpServer as part of standard process termination, or 2) the client can cause the process to 
+terminate by invoking the /shutdown URL as noted below.
 
 Two URLs are supported by out of the box.
   * /favicon.ico -  Which is commonly requested by modern browsers will work *if* a favicon.ico file is included in 
@@ -50,7 +54,6 @@ to do anything useful.  See the class documentation for HttpTransaction for deta
 **********************************************************************************************************************/
 
 using System.Diagnostics;
-using System.Linq.Expressions;
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
@@ -114,8 +117,23 @@ namespace jbSoft.Reusable
   /// </summary>
   public class HttpServer
   {
-    private int _port;
     private List<(string uri, Type httpTrans)> _httpTransactions = [];
+
+
+    /// <summary>
+    /// Gets an indication of whether the HttpServer is listening for requests.
+    /// </summary>
+    public bool IsListening { get; private set; } = false;
+
+    /// <summary>
+    /// Gets the port on which the HttpServer is listening.
+    /// </summary>
+    public int Port { get; private set; } = 0;
+
+    /// <summary>
+    /// Gets the base URL on which the HttpServer is listening.
+    /// </summary>
+    public string ListenOn { get; private set; } = string.Empty;
 
 
     /// <summary>
@@ -126,7 +144,7 @@ namespace jbSoft.Reusable
     /// available port.</param>
     public HttpServer(int port = 0)
     {
-      _port = port;
+      Port = port;
 
       // Get all types from the current assembly
       Assembly currentAssembly = Assembly.GetExecutingAssembly();
@@ -162,19 +180,28 @@ namespace jbSoft.Reusable
     /// <summary>
     /// Start running the Http Server.
     /// </summary>
+    /// <param name="cancellationTokenSource">Provides a means of stopping the HttpServer as part of standard
+    /// process termination.
+    /// </param>
     /// <param name="startBrowser">[Optional] Indicates whether or not to force a start of the default browser at the URL 
     /// that this server is listening.  Note, that if the port number (optional constructor parameter) is left at zero the
-    /// browser will be started regardless of this parameter value.</param>
-    public void Start(bool startBrowser = false)
+    /// browser will be started regardless of this parameter value.  The protected StartBrowser() method can be overridden
+    /// to launch a client application other than the default browser or to pass special start parameters to the browser.
+    public Task Start(CancellationTokenSource cancellationTokenSource, bool startBrowser = false)
     {
       using (var listener = new HttpListener())
       {
-        var running = true;
+        cancellationTokenSource.Token.Register(() =>
+        {
+          StopListening(listener);
+          SelfHostWebLog.WriteLine("Listener stopped by CancellationTokenSource");
+        });
+
         var strtBrwsr = startBrowser;
 
-        if(_port == 0)
+        if (Port == 0)
         {
-          _port = GetAvailableTcpPort();
+          Port = GetAvailableTcpPort();
 
           // Add a close message to the shutdown response, since we are using an ephemeral port that won't be known
           // to the user and the browser will be started automatically.
@@ -182,107 +209,137 @@ namespace jbSoft.Reusable
           strtBrwsr = true;
         }
 
-        var listenOn = $"http://localhost:{_port}/";
+        ListenOn = $"http://localhost:{Port}/";
 
         try
         {
-          listener.Prefixes.Add(listenOn);
+          listener.Prefixes.Add(ListenOn);
           listener.Start();
-          SelfHostWebLog.WriteLine($"Listening on {listenOn}");
+          IsListening = true;
+          SelfHostWebLog.WriteLine($"Listening on {ListenOn}");
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
           SelfHostWebLog.WriteLine($"Failed to start listener: {ex}");
+          throw;
         }
 
-        if(strtBrwsr)
+        if (strtBrwsr)
+        {
+          StartBrowser(ListenOn);
+        }
+
+        while (IsListening)
         {
           try
           {
-            Process.Start(new ProcessStartInfo {FileName = listenOn, UseShellExecute = true});
+            IAsyncResult result = listener.BeginGetContext(new AsyncCallback(ListenerCallback), listener);
+            result.AsyncWaitHandle.WaitOne();
           }
-          catch (Exception ex)
+          catch (Exception e) when (e is ObjectDisposedException || e is HttpListenerException)
           {
-            SelfHostWebLog.WriteLine($"Failed to start browser: {ex.Message}");
+            // Forgive exception caused by threads being released from thread pool when 
+            // the HttpListener is closed.
           }
         }
 
-        try
+        listener.Close();
+        SelfHostWebLog.WriteLine($"Listener closed");
+      }
+
+      return Task.CompletedTask;
+    }
+
+
+    private async void ListenerCallback(IAsyncResult result)
+    {
+      Debug.Assert(result.AsyncState != null);
+
+      HttpListenerContext? context = null;
+      bool clientRequestedShutdown = false;
+      string? absPath = string.Empty;
+      HttpListener listener = (HttpListener)result.AsyncState;
+
+      try
+      {
+        // Call EndGetContext to complete the asynchronous operation.
+        context = listener.EndGetContext(result);
+      }
+      catch (Exception e) when (e is ObjectDisposedException || e is HttpListenerException)
+      {
+        // Forgive exception caused by threads being released from thread pool when 
+        // the HttpListener is closed.
+      }
+
+      if (IsListening && context != null)
+      {
+        HttpListenerRequest request = context.Request;
+        absPath = request.Url?.AbsolutePath;
+
+        SelfHostWebLog.WriteLine($"REQUEST: {request.HttpMethod} - {absPath}");
+
+        HttpListenerResponse response = context.Response;
+
+        if (!string.IsNullOrWhiteSpace(absPath))
         {
-          while (running)
+          var httpTrans = FetchHttpTransaction(absPath, context);
+
+          if (httpTrans != null)
           {
-            HttpListenerContext context = listener.GetContext();
+            SelfHostWebLog.WriteLine($"Found HttpTransaction: {httpTrans.GetType().Name}");
 
-            HttpListenerRequest request = context.Request;
-            var absPath = request.Url?.AbsolutePath;
-
-            SelfHostWebLog.WriteLine($"REQUEST: {request.HttpMethod} - {absPath}");
-
-            HttpListenerResponse response = context.Response;
-
-            if (!string.IsNullOrWhiteSpace(absPath))
+            try
             {
-              var httpTrans = FetchHttpTransaction(absPath, context);
-
-              if (httpTrans != null)
-              {
-                SelfHostWebLog.WriteLine($"Found HttpTransaction: {httpTrans.GetType().Name}");
-
-                try
-                {
-                  running = httpTrans.Process();
-                  response.StatusCode = httpTrans.StatusCode;
-                  response.ContentType = httpTrans.ContentType;
-                  response.ContentLength64 = httpTrans.OutputBuffer.Length;
-                  response.OutputStream.Write(httpTrans.OutputBuffer, 0, httpTrans.OutputBuffer.Length);
-                }
-                catch (Exception ex)
-                {
-                  string responseString = $@"<html>
-                  <body>
-                    <h1>500 Internal Server Error</h1>
-                    <p>Processing the requested URL {absPath} was not successful.</p>
-                    <pre>{ex}</pre>
-                  </body>
-                </html>";
-                  byte[] buffer = Encoding.UTF8.GetBytes(responseString);
-
-                  response.StatusCode = 500;
-                  response.ContentType = "text/html";
-                  response.ContentLength64 = buffer.Length;
-                  response.OutputStream.Write(buffer, 0, buffer.Length);
-                }
-              }
-              // Report URL not found.
-              else
-              {
-                var additionalInfo = absPath != "/" ? "" : @"<p>You will need to create a subclass of HttpTransaction and 
-                decorate it will one or more HttpUri attributes in order to be able to handle web requests.</p>";
-                var responseString = $"<html><body><h1>404 Error</h1><p>The requested URL {absPath} was not found!</p>{additionalInfo}</body></html>";
-                byte[] buffer = Encoding.UTF8.GetBytes(responseString);
-
-                response.StatusCode = 404;
-                response.ContentType = "text/html";
-                response.ContentLength64 = buffer.Length;
-                response.OutputStream.Write(buffer, 0, buffer.Length);
-              }
+              clientRequestedShutdown = !await httpTrans.Process();
+              response.StatusCode = httpTrans.StatusCode;
+              response.ContentType = httpTrans.ContentType;
+              response.ContentLength64 = httpTrans.OutputBuffer.Length;
+              response.OutputStream.Write(httpTrans.OutputBuffer, 0, httpTrans.OutputBuffer.Length);
             }
+            catch (Exception ex)
+            {
+              string responseString = $@"<html>
+                <body>
+                  <h1>500 Internal Server Error</h1>
+                  <p>Processing the requested URL {absPath} was not successful.</p>
+                  <pre>{ex}</pre>
+                </body>
+              </html>";
+              byte[] buffer = Encoding.UTF8.GetBytes(responseString);
 
-            response.Close();
+              response.StatusCode = 500;
+              response.ContentType = "text/html";
+              response.ContentLength64 = buffer.Length;
+              response.OutputStream.Write(buffer, 0, buffer.Length);
+            }
+          }
+          // Report URL not found.
+          else
+          {
+            var additionalInfo = absPath != "/" ? "" : @"<p>You will need to create a subclass of HttpTransaction and 
+              decorate it will one or more HttpUri attributes in order to be able to handle web requests.</p>";
+            var responseString = $"<html><body><h1>404 Error</h1><p>The requested URL {absPath} was not found!</p>{additionalInfo}</body></html>";
+            byte[] buffer = Encoding.UTF8.GetBytes(responseString);
+
+            response.StatusCode = 404;
+            response.ContentType = "text/html";
+            response.ContentLength64 = buffer.Length;
+            response.OutputStream.Write(buffer, 0, buffer.Length);
           }
         }
-        catch(Exception ex)
-        {
-          SelfHostWebLog.WriteLine($"Failed process request: {ex}");
-        }
+        response.Close();
+      }
 
-        listener.Stop();
+      if (clientRequestedShutdown)
+      {
+        StopListening(listener);
+        SelfHostWebLog.WriteLine($"Listener stopped by client invoking {absPath}");
       }
     }
 
 
     /// <summary>
-    /// Creates and instance of the HttpTransaction sub-class that supports the given URI, populates its
+    /// Creates an instance of the HttpTransaction sub-class that supports the given URI, populates its
     /// properties if appropriate, and returns it.
     /// </summary>
     /// <param name="uri">The URI that is being requested.</param>
@@ -356,7 +413,38 @@ namespace jbSoft.Reusable
         tmpSocket.Close();
       }
     }
+
+    /// <summary>
+    /// Opens the default browser to the base URL for the server when Start() is called.  This method
+    /// can be overridden to launch a client application other than the default browser or to pass special
+    /// start parameters to the browser.
+    /// </summary>
+    /// <param name="listenOn">The base URL on which the HttpServer is listening.</param>
+    protected virtual void StartBrowser(string listenOn)
+    {
+      try
+      {
+        Process.Start(new ProcessStartInfo { FileName = listenOn, UseShellExecute = true });
+      }
+      catch (Exception ex)
+      {
+        SelfHostWebLog.WriteLine($"Failed to start browser: {ex.Message}");
+      }
+    }
+
+
+    private void StopListening(HttpListener listener)
+    {
+      if (IsListening)
+      {
+        listener.Stop();
+        IsListening = false;
+        Port = 0;
+        ListenOn = string.Empty;
+      }
+    }
   }
+
 
 
   /// <summary>
@@ -452,7 +540,7 @@ namespace jbSoft.Reusable
     /// The HTTP Method used by the client to make the request.
     /// </summary>
     public string HttpMethod { get { return Request.HttpMethod; } }
-    
+
     /// <summary>
     /// Gets or sets the status code of the response.  Defaults to 200.  (aka. Success)
     /// </summary>
@@ -501,7 +589,10 @@ namespace jbSoft.Reusable
     /// <returns>
     /// True indicating the server should continue running; false indicating the server should shutdown after this transaction.
     /// </returns>
-    public abstract bool Process();
+    public virtual Task<bool> Process()
+    {
+      return Task.FromResult(true);
+    }
 
 
     /// <summary>
@@ -736,17 +827,18 @@ namespace jbSoft.Reusable
   }
 
 
+
   /// <summary>
   /// Handles a favicon request.
   /// </summary>
   [HttpUri("/favicon.ico")]
   public class Favicon : HttpTransaction
   {
-    public override bool Process()
+    public override Task<bool> Process()
     {
       LoadContentFromResource("favicon.ico");
 
-      return true;
+      return Task.FromResult(true);
     }
   }
 
@@ -773,12 +865,12 @@ namespace jbSoft.Reusable
     internal static bool AddCloseMsg { get; set; } = false;
 
 
-    public override bool Process()
+    public override Task<bool> Process()
     {
       var href = string.IsNullOrWhiteSpace(Request.Headers["Referer"]) ? "/" : Request.Headers["Referer"];
       var extraBodyPart = AddRestartUrl ? $"<a href='{href}'>Restart</a>" : "";
 
-      if(AddCloseMsg)
+      if (AddCloseMsg)
       {
         // Doesn't make sense to have a close message and a restart, so replace any restart if adding the close message.
         extraBodyPart = "<p>Please close this window/tab.</p>";
@@ -786,7 +878,7 @@ namespace jbSoft.Reusable
 
       Content = $"<html><body><h1>Shutting Down</h1><p>Server shutdown was requested.</p>{extraBodyPart}</body></html>";
 
-      return false;
+      return Task.FromResult(false);
     }
   }
 }
