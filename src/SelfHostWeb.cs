@@ -322,7 +322,7 @@ namespace jbSoft.Reusable
 
     private async Task<bool> InvokeHttpTransaction(HttpOperation httpTrans, HttpListenerContext context)
     {
-      bool invocationResult = false;
+      bool invocationResult = true;
       HttpListenerResponse response = context.Response;
 
       try

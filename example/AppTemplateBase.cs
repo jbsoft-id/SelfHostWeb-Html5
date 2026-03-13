@@ -26,6 +26,7 @@ public class AppTemplateBase : HttpOperation
     <p>Error Tests</p>
       <a href=""missingresource"">Missing Resource</a>
       <a href=""nonexistanturl"">Non-Existant URL</a>
+      <a href=""brokenstreamer"">Streamer Exception</a>
     <p>Internal Ops</p>
       <a href=""testtemplate"">GetTemplateFromResource()</a>
       <a href=""shutdown"">Shutdown</a>";

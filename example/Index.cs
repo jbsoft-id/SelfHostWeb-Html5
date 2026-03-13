@@ -1,5 +1,4 @@
 
-using System.Net;
 using jbSoft.Reusable;
 
 [HttpUri("/")]
@@ -11,6 +10,8 @@ public class Index : AppTemplateBase
     View = $@"
     <h1>Self Hosted Web Server</h1>
     <h2>Index</h2>
+    <br>
+    <h1 id=""mantel"">HH:MM:SS</h1>
     <p>
     This example demonstrates working with Query Strings.  Further testing can be done by altering the Query String in the
     browser address bar.
@@ -29,7 +30,26 @@ Method HttpTransaction.GetQueryStringValue(""NonExistentKey"") = {DumpGetQuerySt
 Method HttpTransaction.GetQueryStringValue(""KeyWithNoVal"") = {DumpGetQueryStringValue("KeyWithNoVal")}
 Method HttpTransaction.GetQueryStringValue(""KeyWithMultiVals"") = {DumpGetQueryStringValue("KeyWithMultiVals")}
       </pre>
-    </div>";
+    </div>
+    
+    <script>
+  const eventSource = new EventSource('/clockstreamer');
+
+  eventSource.onopen = () => {{console.log('SSE connection opened')}};
+
+  eventSource.onmessage = (event) => {{
+    const payload = JSON.parse(event.data);
+    document.getElementById('mantel').innerHTML = payload;
+  }}
+
+  eventSource.onerror = () => {{
+    if (eventSource.readyState === EventSource.CONNECTING) {{
+      console.log('Reconnecting...');
+    }}
+  }};
+
+</script>
+";
 
     return await base.Process();
   }
