@@ -101,6 +101,7 @@ namespace jbSoft.Reusable.Tests
         Assert.That(_httpServer.ListenOn, Is.EqualTo("http://localhost:65535/"));
 
         var response = await client.PostAsync("http://localhost:65535/echo", new StringContent("Hello?"));
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var stringResponse = await response.Content.ReadAsStringAsync();
         Assert.That(stringResponse, Is.EqualTo("I heard Hello?"));
       });
@@ -125,6 +126,7 @@ namespace jbSoft.Reusable.Tests
         Assert.That(_httpServer.ListenOn, Is.EqualTo($"http://localhost:{_httpServer.Port}/"));
 
         var response = await client.PostAsync($"http://localhost:{_httpServer.Port}/echo", new StringContent("Hello?"));
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var stringResponse = await response.Content.ReadAsStringAsync();
         Assert.That(stringResponse, Is.EqualTo("I heard Hello?"));
       });
@@ -232,5 +234,30 @@ namespace jbSoft.Reusable.Tests
                     Throws.InstanceOf<HttpRequestException>());
       });
     }
+
+
+    [Test]
+    public void NonexistentEndpointInvoked_WhileListening_Returns404()
+    {
+      // Arrange
+      _httpServer = new TestableHttpServer(7000);
+      var client = new HttpClient();
+
+      // Act
+      Task.Run(() => _httpServer.Start(_httpServer.CancellationTokenSource));
+
+      // Assert
+      Assert.Multiple(async () =>
+      {
+        Assert.That(_httpServer.TryWaitIsListeningState(true), Is.True);
+
+        var response = await client.PostAsync($"http://localhost:{_httpServer.Port}/nonexistent", new StringContent("Hello?"));
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+        var stringResponse = await response.Content.ReadAsStringAsync();
+        Assert.That(stringResponse, Is.EqualTo(
+          "<html><body><h1>404 Error</h1><p>The requested URL /nonexistent was not found!</p></body></html>"));
+      });
+    }
+
   }
 }
