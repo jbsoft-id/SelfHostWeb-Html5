@@ -54,7 +54,7 @@ namespace jbSoft.Reusable.Tests
   {
     public override Task<bool> Process()
     {
-      throw new Exception("Fatal error.");
+      throw new Exception("Transaction exception.");
     }
   }
 
@@ -64,7 +64,7 @@ namespace jbSoft.Reusable.Tests
   {
     public override Task<bool> Process()
     {
-      throw new Exception("The clock struck 13.");
+      throw new Exception("Stream exception.");
     }
   }
 
@@ -257,7 +257,7 @@ namespace jbSoft.Reusable.Tests
 
 
     [Test]
-    public void ShutdownEndpointInvoked_WhileListening_StopsListening()
+    public void OperationInvoked_Shutdown_StopsListening()
     {
       // Arrange
       _httpServer = new TestableHttpServer(7000);
@@ -278,7 +278,7 @@ namespace jbSoft.Reusable.Tests
 
 
     [Test]
-    public void NonexistentEndpointInvoked_WhileListening_Returns404()
+    public void OperationInvoked_NonexistentUrl_WhileListening_Returns404()
     {
       // Arrange
       _httpServer = new TestableHttpServer(7000);
@@ -301,7 +301,7 @@ namespace jbSoft.Reusable.Tests
 
 
     [Test]
-    public void TransactionThrowsException_WhileListening_Returns500()
+    public void OperationInvoked_TransactionThrowsException_Returns500()
     {
       // Arrange
       _httpServer = new TestableHttpServer(7000);
@@ -323,7 +323,7 @@ namespace jbSoft.Reusable.Tests
 
 
     [Test]
-    public void StreamEndpointInvoked_WhileListening_StreamReceived()
+    public void OperationInvoked_Stream_SendsStream()
     {
       // Arrange
       List<string> expected = ["Alpha", "Bravo", "Charlie", "Delta"];
@@ -351,7 +351,7 @@ namespace jbSoft.Reusable.Tests
 
 
     [Test]
-    public void StreamThrowsException_WhileListening_Returns500()
+    public void OperationInvoked_StreamThrowsException_Returns500()
     {
       // Arrange
       _httpServer = new TestableHttpServer(7000);
