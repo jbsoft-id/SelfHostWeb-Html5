@@ -282,18 +282,18 @@ namespace jbSoft.Reusable
 
         if (!string.IsNullOrWhiteSpace(absPath))
         {
-          var httpTrans = FetchHttpOperation(absPath, context);
-          if (httpTrans != null)
+          var httpOperation = FetchHttpOperation(absPath, context);
+          if (httpOperation != null)
           {
-            if (httpTrans is IHttpStream)
+            if (httpOperation is IHttpStream)
             {
-              SelfHostWebLog.WriteLine($"Found streaming HttpOperation: {httpTrans.GetType().Name}");
-              await InvokeHttpStream(httpTrans, context);
+              SelfHostWebLog.WriteLine($"Found streaming HttpOperation: {httpOperation.GetType().Name}");
+              await InvokeHttpStream(httpOperation, context);
             }
             else
             {
-              SelfHostWebLog.WriteLine($"Found transactional HttpOperation: {httpTrans.GetType().Name}");
-              clientRequestedShutdown = !await InvokeHttpTransaction(httpTrans, context);
+              SelfHostWebLog.WriteLine($"Found transactional HttpOperation: {httpOperation.GetType().Name}");
+              clientRequestedShutdown = !await InvokeHttpTransaction(httpOperation, context);
             }
           }
           else
@@ -355,6 +355,28 @@ namespace jbSoft.Reusable
     }
 
 
+    private async Task InvokeHttpStream(HttpOperation httpStream, HttpListenerContext context)
+    {
+      SelfHostWebLog.WriteLine($"Found HttpStream: {httpStream.GetType().Name}");
+      HttpListenerResponse response = context.Response;
+
+      try
+      {
+        response.AddHeader("Content-Type", "text/event-stream");
+        response.AddHeader("Cache-Control", "no-cache");
+        response.AddHeader("Access-Control-Allow-Origin", "*");
+        response.KeepAlive = true;
+
+        await httpStream.Process();
+      }
+      catch (Exception ex)
+      {
+        SelfHostWebLog.WriteLine($"HttpStream exception PATH: {httpStream.AbsolutePath} MESSAGE: {ex.Message}");
+        response.StatusCode = 500;
+      }
+    }
+
+
     /// <summary>
     /// Creates an instance of the HttpOperation sub-class that supports the given URI, populates its
     /// properties if appropriate, and returns it.
@@ -407,28 +429,6 @@ namespace jbSoft.Reusable
       }
 
       return operation;
-    }
-
-
-    private async Task InvokeHttpStream(HttpOperation httpStream, HttpListenerContext context)
-    {
-      SelfHostWebLog.WriteLine($"Found HttpStream: {httpStream.GetType().Name}");
-      HttpListenerResponse response = context.Response;
-
-      try
-      {
-        response.AddHeader("Content-Type", "text/event-stream");
-        response.AddHeader("Cache-Control", "no-cache");
-        response.AddHeader("Access-Control-Allow-Origin", "*");
-        response.KeepAlive = true;
-
-        await httpStream.Process();
-      }
-      catch (Exception ex)
-      {
-        SelfHostWebLog.WriteLine($"HttpStream exception PATH: {httpStream.AbsolutePath} MESSAGE: {ex.Message}");
-        response.StatusCode = 500;
-      }
     }
 
 

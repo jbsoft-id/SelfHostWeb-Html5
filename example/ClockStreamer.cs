@@ -1,14 +1,10 @@
 
 using System.Text;
-using System.Text.Json;
 using jbSoft.Reusable;
 
 [HttpUri("/clockstreamer")]
 public class ClockStreamer : HttpOperation, IHttpStream
 {
-  public string? Id { get; set; }
-
-
   public override async Task<bool> Process()
   {
     var response = Context.Response;

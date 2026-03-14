@@ -9,6 +9,6 @@ public class BrokenStreamer : HttpOperation, IHttpStream
 {
   public override Task<bool> Process()
   {
-    throw new Exception("The clock struck 13.");
+    throw new Exception("Stream exception.");
   }
 }
