@@ -278,7 +278,7 @@ namespace jbSoft.Reusable.Tests
 
 
     [Test]
-    public void OperationInvoked_NonexistentUrl_WhileListening_Returns404()
+    public void OperationInvoked_NonexistentUrl_Returns404()
     {
       // Arrange
       _httpServer = new TestableHttpServer(7000);
@@ -317,7 +317,7 @@ namespace jbSoft.Reusable.Tests
         var response = await _client.PostAsync($"http://localhost:7000/brokentransaction", content: null);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.InternalServerError));
         var stringResponse = await response.Content.ReadAsStringAsync();
-        Assert.That(stringResponse, Contains.Substring("Fatal error."));
+        Assert.That(stringResponse, Contains.Substring("Transaction exception."));
       });
     }
 
@@ -327,6 +327,7 @@ namespace jbSoft.Reusable.Tests
     {
       // Arrange
       List<string> expected = ["Alpha", "Bravo", "Charlie", "Delta"];
+      List<string> actual = [];
       _httpServer = new TestableHttpServer(7000);
 
       // Act
@@ -337,14 +338,11 @@ namespace jbSoft.Reusable.Tests
       {
         Assert.That(_httpServer.TryWaitIsListeningState(true), Is.True);
 
-        List<string> actual = new();
         using var stream = await _client.GetStreamAsync("http://localhost:7000/streamer");
         await foreach (SseItem<string> item in SseParser.Create(stream).EnumerateAsync())
         {
-          Debug.WriteLine($"Event: {item.EventId}, Data: {item.Data}, Id: {item.EventType}, Retry: {item.ReconnectionInterval}");
           actual.Add(item.Data);
         }
-
         Assert.That(actual, Is.EquivalentTo(expected));
       });
     }
@@ -363,11 +361,8 @@ namespace jbSoft.Reusable.Tests
       Assert.Multiple(async () =>
       {
         Assert.That(_httpServer.TryWaitIsListeningState(true), Is.True);
-
-        var response = await _client.PostAsync($"http://localhost:7000/brokenstreamer", new StringContent(""));
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.InternalServerError));
-        var stringResponse = await response.Content.ReadAsStringAsync();
-        Assert.That(stringResponse, Is.Empty);
+        Assert.That(async () => await _client.GetStreamAsync("http://localhost:7000/brokenstreamer"),
+                    Throws.InstanceOf<HttpRequestException>().With.Property("StatusCode").EqualTo(HttpStatusCode.InternalServerError));
       });
     }
   }
