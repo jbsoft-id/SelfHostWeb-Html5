@@ -11,7 +11,7 @@ public class Index : AppTemplateBase
     <h1>Self Hosted Web Server</h1>
     <h2>Index</h2>
     <br>
-    <h1 id=""mantel"">HH:MM:SS</h1>
+    <h1 id=""clockdisplay"">HH:MM:SS</h1>
     <p>
     This example demonstrates working with Query Strings.  Further testing can be done by altering the Query String in the
     browser address bar.
@@ -39,7 +39,7 @@ Method HttpTransaction.GetQueryStringValue(""KeyWithMultiVals"") = {DumpGetQuery
 
   eventSource.onmessage = (event) => {{
     const payload = JSON.parse(event.data);
-    document.getElementById('mantel').innerHTML = payload;
+    document.getElementById('clockdisplay').innerHTML = payload;
   }}
 
   eventSource.onerror = () => {{
