@@ -38,8 +38,7 @@ Method HttpTransaction.GetQueryStringValue(""KeyWithMultiVals"") = {DumpGetQuery
   eventSource.onopen = () => {{console.log('SSE connection opened')}};
 
   eventSource.onmessage = (event) => {{
-    const payload = JSON.parse(event.data);
-    document.getElementById('clockdisplay').innerHTML = payload;
+    document.getElementById('clockdisplay').innerHTML = event.data;
   }}
 
   eventSource.onerror = () => {{

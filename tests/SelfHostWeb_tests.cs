@@ -2,8 +2,6 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.ServerSentEvents;
 using System.Text;
-using System.Text.Json;
-using FluentAssertions;
 using NUnit.Framework;
 
 namespace jbSoft.Reusable.Tests
@@ -81,28 +79,13 @@ namespace jbSoft.Reusable.Tests
 
       alphabet.ForEach(async letter =>
       {
-        byte[] buffer = Encoding.UTF8.GetBytes(
-          string.Format("data: {0}\n\n", JsonSerializer.Serialize(letter)));
+        byte[] buffer = Encoding.UTF8.GetBytes($"data: {letter}\n\n");
         response.OutputStream.Write(buffer, 0, buffer.Length);
         response.OutputStream.Flush();
-        await Task.Delay(1000);
+        await Task.Delay(100);
       });
 
       return Task.FromResult(true);
-
-
-      //int i = 1;
-      //       while (true)
-      //       {
-      //         byte[] buffer = Encoding.UTF8.GetBytes(
-      //           string.Format("data: {0}\n\n", JsonSerializer.Serialize(DateTime.Now.ToString("HH:mm:ss"))));
-
-      //         response.OutputStream.Write(buffer, 0, buffer.Length);
-      //         response.OutputStream.Flush();
-
-      // //Debug.WriteLine($"{i++}");
-      //         await Task.Delay(5000);
-      //       }
     }
   }
 
@@ -352,7 +335,7 @@ namespace jbSoft.Reusable.Tests
     public void StreamEndpointInvoked_WhileListening_StreamReceived()
     {
       // Arrange
-      List<string> expected = ["\"Alfa\"", "\"Bravo\"", "\"Charlie\"", "\"Delta\""];
+      List<string> expected = ["Alfa", "Bravo", "Charlie", "Delta"];
       _httpServer = new TestableHttpServer(7000);
       var client = new HttpClient();
 
@@ -375,14 +358,7 @@ namespace jbSoft.Reusable.Tests
           actual.Add(item.Data);
         }
 
-        actual.Should().BeEquivalentTo(expected);
-
-
-
-
-
-        // Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.InternalServerError));
-        // Assert.That(stringResponse, Is.Empty);
+        Assert.That(actual, Is.EquivalentTo(expected));
       });
     }
 

@@ -15,9 +15,7 @@ public class ClockStreamer : HttpOperation, IHttpStream
 
     while (true)
     {
-      byte[] buffer = Encoding.UTF8.GetBytes(
-        string.Format("data: {0}\n\n", JsonSerializer.Serialize(DateTime.Now.ToString("HH:mm:ss"))));
-
+      byte[] buffer = Encoding.UTF8.GetBytes($"data: {DateTime.Now:HH:mm:ss}\n\n");
       response.OutputStream.Write(buffer, 0, buffer.Length);
       response.OutputStream.Flush();
 
