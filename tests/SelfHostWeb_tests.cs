@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.Net;
+using System.Net.ServerSentEvents;
+using System.Text;
 using NUnit.Framework;
 
 namespace jbSoft.Reusable.Tests
@@ -37,7 +39,7 @@ namespace jbSoft.Reusable.Tests
   }
 
   [HttpUri("/echo")]
-  public class EchoApi : HttpTransaction
+  public class EchoApi : HttpOperation
   {
     public override Task<bool> Process()
     {
@@ -47,10 +49,53 @@ namespace jbSoft.Reusable.Tests
   }
 
 
+  [HttpUri("/brokentransaction")]
+  public class MissingResource : HttpOperation
+  {
+    public override Task<bool> Process()
+    {
+      throw new Exception("Transaction exception.");
+    }
+  }
+
+
+  [HttpUri("/brokenstreamer")]
+  public class BrokenStreamer : HttpOperation, IHttpStream
+  {
+    public override Task<bool> Process()
+    {
+      throw new Exception("Stream exception.");
+    }
+  }
+
+
+  [HttpUri("/streamer")]
+  public class Streamer : HttpOperation, IHttpStream
+  {
+    public override Task<bool> Process()
+    {
+      var response = Context.Response;
+      List<string> alphabet = ["Alpha", "Bravo", "Charlie", "Delta"];
+
+      alphabet.ForEach(async letter =>
+      {
+        byte[] buffer = Encoding.UTF8.GetBytes($"data: {letter}\n\n");
+        response.OutputStream.Write(buffer, 0, buffer.Length);
+        response.OutputStream.Flush();
+        await Task.Delay(100);
+      });
+
+      return Task.FromResult(true);
+    }
+  }
+
+
   [TestFixture]
   class HttpServerTests
   {
     private TestableHttpServer? _httpServer = null;
+    private HttpClient _client = new();
+
 
     [OneTimeSetUp]
     public void OneTimeSetUp()
@@ -88,7 +133,6 @@ namespace jbSoft.Reusable.Tests
     {
       // Arrange
       _httpServer = new TestableHttpServer(65535);
-      var client = new HttpClient();
 
       // Act
       Task.Run(() => _httpServer.Start(_httpServer.CancellationTokenSource));
@@ -100,7 +144,8 @@ namespace jbSoft.Reusable.Tests
         Assert.That(_httpServer.Port, Is.EqualTo(65535));
         Assert.That(_httpServer.ListenOn, Is.EqualTo("http://localhost:65535/"));
 
-        var response = await client.PostAsync("http://localhost:65535/echo", new StringContent("Hello?"));
+        var response = await _client.PostAsync("http://localhost:65535/echo", new StringContent("Hello?"));
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var stringResponse = await response.Content.ReadAsStringAsync();
         Assert.That(stringResponse, Is.EqualTo("I heard Hello?"));
       });
@@ -111,7 +156,6 @@ namespace jbSoft.Reusable.Tests
     public void Start_EphemeralPort_HandlesRequest()
     {
       // Arrange
-      var client = new HttpClient();
       _httpServer = new TestableHttpServer();
 
       // Act
@@ -124,7 +168,8 @@ namespace jbSoft.Reusable.Tests
         Assert.That(_httpServer.Port, Is.GreaterThanOrEqualTo(1).And.LessThanOrEqualTo(65535));
         Assert.That(_httpServer.ListenOn, Is.EqualTo($"http://localhost:{_httpServer.Port}/"));
 
-        var response = await client.PostAsync($"http://localhost:{_httpServer.Port}/echo", new StringContent("Hello?"));
+        var response = await _client.PostAsync($"http://localhost:{_httpServer.Port}/echo", new StringContent("Hello?"));
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var stringResponse = await response.Content.ReadAsStringAsync();
         Assert.That(stringResponse, Is.EqualTo("I heard Hello?"));
       });
@@ -194,7 +239,6 @@ namespace jbSoft.Reusable.Tests
     public void CancelToken_WhileListening_StopsListening()
     {
       // Arrange
-      var client = new HttpClient();
       _httpServer = new TestableHttpServer(7000);
       Task.Run(() => _httpServer.Start(_httpServer.CancellationTokenSource));
       Assume.That(_httpServer.TryWaitIsListeningState(true), Is.True);
@@ -206,30 +250,119 @@ namespace jbSoft.Reusable.Tests
       Assert.Multiple(() =>
       {
         Assert.That(_httpServer.TryWaitIsListeningState(false), Is.True);
-        Assert.That(async () => await client.PostAsync("http://localhost:7000/echo", new StringContent("Hello?")),
+        Assert.That(async () => await _client.PostAsync("http://localhost:7000/echo", new StringContent("Hello?")),
                     Throws.InstanceOf<HttpRequestException>());
       });
     }
 
 
     [Test]
-    public void ShutdownEndpointInvoked_WhileListening_StopsListening()
+    public void OperationInvoked_Shutdown_StopsListening()
     {
       // Arrange
-      var client = new HttpClient();
       _httpServer = new TestableHttpServer(7000);
       Task.Run(() => _httpServer.Start(_httpServer.CancellationTokenSource));
       Assume.That(_httpServer.TryWaitIsListeningState(true), Is.True);
 
       // Act
-      Task.Run(async () => await client.PostAsync("http://localhost:7000/shutdown", new StringContent("")));
+      Task.Run(async () => await _client.PostAsync("http://localhost:7000/shutdown", new StringContent("")));
 
       // Assert
       Assert.Multiple(() =>
       {
         Assert.That(_httpServer.TryWaitIsListeningState(false), Is.True);
-        Assert.That(async () => await client.PostAsync("http://localhost:7000/echo", new StringContent("Hello?")),
+        Assert.That(async () => await _client.PostAsync("http://localhost:7000/echo", new StringContent("Hello?")),
                     Throws.InstanceOf<HttpRequestException>());
+      });
+    }
+
+
+    [Test]
+    public void OperationInvoked_NonexistentUrl_Returns404()
+    {
+      // Arrange
+      _httpServer = new TestableHttpServer(7000);
+
+      // Act
+      Task.Run(() => _httpServer.Start(_httpServer.CancellationTokenSource));
+
+      // Assert
+      Assert.Multiple(async () =>
+      {
+        Assert.That(_httpServer.TryWaitIsListeningState(true), Is.True);
+
+        var response = await _client.PostAsync($"http://localhost:7000/nonexistent", content: null);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+        var stringResponse = await response.Content.ReadAsStringAsync();
+        Assert.That(stringResponse, Is.EqualTo(
+          "<html><body><h1>404 Error</h1><p>The requested URL /nonexistent was not found!</p></body></html>"));
+      });
+    }
+
+
+    [Test]
+    public void OperationInvoked_TransactionThrowsException_Returns500()
+    {
+      // Arrange
+      _httpServer = new TestableHttpServer(7000);
+
+      // Act
+      Task.Run(() => _httpServer.Start(_httpServer.CancellationTokenSource));
+
+      // Assert
+      Assert.Multiple(async () =>
+      {
+        Assert.That(_httpServer.TryWaitIsListeningState(true), Is.True);
+
+        var response = await _client.PostAsync($"http://localhost:7000/brokentransaction", content: null);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.InternalServerError));
+        var stringResponse = await response.Content.ReadAsStringAsync();
+        Assert.That(stringResponse, Contains.Substring("Transaction exception."));
+      });
+    }
+
+
+    [Test]
+    public void OperationInvoked_Stream_SendsStream()
+    {
+      // Arrange
+      List<string> expected = ["Alpha", "Bravo", "Charlie", "Delta"];
+      List<string> actual = [];
+      _httpServer = new TestableHttpServer(7000);
+
+      // Act
+      Task.Run(() => _httpServer.Start(_httpServer.CancellationTokenSource));
+
+      // Assert
+      Assert.Multiple(async () =>
+      {
+        Assert.That(_httpServer.TryWaitIsListeningState(true), Is.True);
+
+        using var stream = await _client.GetStreamAsync("http://localhost:7000/streamer");
+        await foreach (SseItem<string> item in SseParser.Create(stream).EnumerateAsync())
+        {
+          actual.Add(item.Data);
+        }
+        Assert.That(actual, Is.EquivalentTo(expected));
+      });
+    }
+
+
+    [Test]
+    public void OperationInvoked_StreamThrowsException_Returns500()
+    {
+      // Arrange
+      _httpServer = new TestableHttpServer(7000);
+
+      // Act
+      Task.Run(() => _httpServer.Start(_httpServer.CancellationTokenSource));
+
+      // Assert
+      Assert.Multiple(() =>
+      {
+        Assert.That(_httpServer.TryWaitIsListeningState(true), Is.True);
+        Assert.That(async () => await _client.GetStreamAsync("http://localhost:7000/brokenstreamer"),
+                    Throws.InstanceOf<HttpRequestException>().With.Property("StatusCode").EqualTo(HttpStatusCode.InternalServerError));
       });
     }
   }

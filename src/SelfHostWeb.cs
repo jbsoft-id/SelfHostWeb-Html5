@@ -49,8 +49,8 @@ Two URLs are supported by out of the box.
   * /shutdown -     This URL will cause the web server to shutdown and return execution to the part of the application
                     that called the Start() method.
 
-In addition, it will be necessary to declare additional subclasses of HttpTransaction in order for the server instance 
-to do anything useful.  See the class documentation for HttpTransaction for details.
+In addition, it will be necessary to declare additional subclasses of HttpOperation in order for the server instance 
+to do anything useful.  See the class documentation for HttpOperation for details.
 **********************************************************************************************************************/
 
 using System.Diagnostics;
@@ -117,7 +117,7 @@ namespace jbSoft.Reusable
   /// </summary>
   public class HttpServer
   {
-    private List<(string uri, Type httpTrans)> _httpTransactions = [];
+    private List<(string uri, Type httpTrans)> _httpOperations = [];
 
 
     /// <summary>
@@ -137,7 +137,7 @@ namespace jbSoft.Reusable
 
 
     /// <summary>
-    /// Constructs an instance and discovers subclasses of HttpTransaction and the HttpUris they are 
+    /// Constructs an instance and discovers subclasses of HttpOperation and the HttpUris they are 
     /// decorated with in order to know what URL resources are supported.
     /// </summary>
     /// <param name="port">[Optional] The TCP port to listen on.  The default value causes the server to find an
@@ -149,14 +149,14 @@ namespace jbSoft.Reusable
       // Get all types from the current assembly
       Assembly currentAssembly = Assembly.GetExecutingAssembly();
 
-      // Find all classes that inherit from base class HttpTransaction.
+      // Find all classes that inherit from base class HttpOperation.
       var derivedClasses = currentAssembly.GetTypes().Where(type => !type.IsAbstract &&
-                                                            type.IsSubclassOf(typeof(HttpTransaction))
-                                                            // The following line will exclude all but the default HttpTransaction types.
+                                                            type.IsSubclassOf(typeof(HttpOperation))
+                                                            // The following line will exclude all but the default HttpOperation types.
                                                             //&& type.FullName.StartsWith("jbSoft.Reusable.")
                                                             );
 
-      SelfHostWebLog.WriteLine("Classes inheriting from HttpTransaction:");
+      SelfHostWebLog.WriteLine("Classes inheriting from HttpOperation:");
       foreach (Type type in derivedClasses)
       {
         var first = true;
@@ -171,7 +171,7 @@ namespace jbSoft.Reusable
 
           SelfHostWebLog.WriteLine($"  > {attr.Uri}");
 
-          _httpTransactions.Add((attr.Uri, type));
+          _httpOperations.Add((attr.Uri, type));
         }
       }
     }
@@ -282,41 +282,24 @@ namespace jbSoft.Reusable
 
         if (!string.IsNullOrWhiteSpace(absPath))
         {
-          var httpTrans = FetchHttpTransaction(absPath, context);
-
-          if (httpTrans != null)
+          var httpOperation = FetchHttpOperation(absPath, context);
+          if (httpOperation != null)
           {
-            SelfHostWebLog.WriteLine($"Found HttpTransaction: {httpTrans.GetType().Name}");
-
-            try
+            if (httpOperation is IHttpStream)
             {
-              clientRequestedShutdown = !await httpTrans.Process();
-              response.StatusCode = httpTrans.StatusCode;
-              response.ContentType = httpTrans.ContentType;
-              response.ContentLength64 = httpTrans.OutputBuffer.Length;
-              response.OutputStream.Write(httpTrans.OutputBuffer, 0, httpTrans.OutputBuffer.Length);
+              SelfHostWebLog.WriteLine($"Found streaming HttpOperation: {httpOperation.GetType().Name}");
+              await InvokeHttpStream(httpOperation, context);
             }
-            catch (Exception ex)
+            else
             {
-              string responseString = $@"<html>
-                <body>
-                  <h1>500 Internal Server Error</h1>
-                  <p>Processing the requested URL {absPath} was not successful.</p>
-                  <pre>{ex}</pre>
-                </body>
-              </html>";
-              byte[] buffer = Encoding.UTF8.GetBytes(responseString);
-
-              response.StatusCode = 500;
-              response.ContentType = "text/html";
-              response.ContentLength64 = buffer.Length;
-              response.OutputStream.Write(buffer, 0, buffer.Length);
+              SelfHostWebLog.WriteLine($"Found transactional HttpOperation: {httpOperation.GetType().Name}");
+              clientRequestedShutdown = !await InvokeHttpTransaction(httpOperation, context);
             }
           }
-          // Report URL not found.
           else
           {
-            var additionalInfo = absPath != "/" ? "" : @"<p>You will need to create a subclass of HttpTransaction and 
+            // Report URL not found.
+            var additionalInfo = absPath != "/" ? "" : @"<p>You will need to create a subclass of HttpOperation and 
               decorate it will one or more HttpUri attributes in order to be able to handle web requests.</p>";
             var responseString = $"<html><body><h1>404 Error</h1><p>The requested URL {absPath} was not found!</p>{additionalInfo}</body></html>";
             byte[] buffer = Encoding.UTF8.GetBytes(responseString);
@@ -337,36 +320,92 @@ namespace jbSoft.Reusable
       }
     }
 
+    private async Task<bool> InvokeHttpTransaction(HttpOperation httpTrans, HttpListenerContext context)
+    {
+      bool invocationResult = true;
+      HttpListenerResponse response = context.Response;
+
+      try
+      {
+        invocationResult = await httpTrans.Process();
+        response.StatusCode = httpTrans.StatusCode;
+        response.ContentType = httpTrans.ContentType;
+        response.ContentLength64 = httpTrans.OutputBuffer.Length;
+        response.OutputStream.Write(httpTrans.OutputBuffer, 0, httpTrans.OutputBuffer.Length);
+      }
+      catch (Exception ex)
+      {
+        SelfHostWebLog.WriteLine($"HttpOperation exception PATH: {httpTrans.AbsolutePath} MESSAGE: {ex.Message}");
+        string responseString = $@"<html>
+                <body>
+                  <h1>500 Internal Server Error</h1>
+                  <p>Processing the requested URL {httpTrans.AbsolutePath} was not successful.</p>
+                  <pre>{ex}</pre>
+                </body>
+              </html>";
+        byte[] buffer = Encoding.UTF8.GetBytes(responseString);
+
+        response.StatusCode = 500;
+        response.ContentType = "text/html";
+        response.ContentLength64 = buffer.Length;
+        response.OutputStream.Write(buffer, 0, buffer.Length);
+      }
+
+      return invocationResult;
+    }
+
+
+    private async Task InvokeHttpStream(HttpOperation httpStream, HttpListenerContext context)
+    {
+      SelfHostWebLog.WriteLine($"Found HttpStream: {httpStream.GetType().Name}");
+      HttpListenerResponse response = context.Response;
+
+      try
+      {
+        response.AddHeader("Content-Type", "text/event-stream");
+        response.AddHeader("Cache-Control", "no-cache");
+        response.AddHeader("Access-Control-Allow-Origin", "*");
+        response.KeepAlive = true;
+
+        await httpStream.Process();
+      }
+      catch (Exception ex)
+      {
+        SelfHostWebLog.WriteLine($"HttpStream exception PATH: {httpStream.AbsolutePath} MESSAGE: {ex.Message}");
+        response.StatusCode = 500;
+      }
+    }
+
 
     /// <summary>
-    /// Creates an instance of the HttpTransaction sub-class that supports the given URI, populates its
+    /// Creates an instance of the HttpOperation sub-class that supports the given URI, populates its
     /// properties if appropriate, and returns it.
     /// </summary>
     /// <param name="uri">The URI that is being requested.</param>
     /// <param name="context">Contextual information provided by the HttpServer regarding the client request as well 
     /// as provides a means for returning a response.</param>
     /// <returns>
-    /// An instance of the HttpTransaction sub-class that supports the given URI if one exists; null otherwise.
+    /// An instance of the HttpOperation sub-class that supports the given URI if one exists; null otherwise.
     /// </returns>
     /// <exception cref="MissingMemberException">
     /// Thrown if the URI has parameters specified for which there is no matching property.
     /// </exception>
-    private HttpTransaction? FetchHttpTransaction(string uri, HttpListenerContext context)
+    private HttpOperation? FetchHttpOperation(string uri, HttpListenerContext context)
     {
-      HttpTransaction? transaction = null;
+      HttpOperation? operation = null;
 
-      foreach (var item in _httpTransactions)
+      foreach (var item in _httpOperations)
       {
         var regex = new Regex($"^{item.uri}$");
         var match = regex.Match(uri);
 
         if (match.Success)
         {
-          transaction = Activator.CreateInstance(item.httpTrans) as HttpTransaction;
+          operation = Activator.CreateInstance(item.httpTrans) as HttpOperation;
 
-          if (transaction != null)
+          if (operation != null)
           {
-            transaction.Context = context;
+            operation.Context = context;
 
             foreach (var grpName in regex.GetGroupNames().Skip(1))
             {
@@ -376,7 +415,7 @@ namespace jbSoft.Reusable
 
               if (propertyInfo != null)
               {
-                propertyInfo.SetValue(transaction, match.Groups[grpName].Value, null);
+                propertyInfo.SetValue(operation, match.Groups[grpName].Value, null);
               }
               else
               {
@@ -389,7 +428,7 @@ namespace jbSoft.Reusable
         }
       }
 
-      return transaction;
+      return operation;
     }
 
 
@@ -490,13 +529,15 @@ namespace jbSoft.Reusable
 
 
   /// <summary>
-  /// A base class for objects that handle http requests and generating responses.
+  /// A base class for objects that handle http requests and generate responses.
   /// </summary>
   /// <remarks>
-  /// The sub-class must be decorated with one or more HttpUri attributes that specify which 
-  /// URLs will invoke it.
+  /// 1.  The sub-class must be decorated with one or more HttpUri attributes that specify which 
+  ///     URLs will invoke it.
+  /// 2.  Subclasses can be decorated with the IHttpStream marker interface for streaming operations
+  ///     such as SSE servers.
   /// </remarks>
-  public abstract class HttpTransaction
+  public abstract class HttpOperation
   {
     private byte[] _outputBuffer = [];
     public string[]? QueryStringKeys { get; private set; } = null;
@@ -555,7 +596,7 @@ namespace jbSoft.Reusable
     public string ContentType { get; set; } = "text/html";
 
     /// <summary>
-    /// Gets the absolute path of url that initiated this transaction.
+    /// Gets the absolute path of url that initiated this operation.
     /// </summary>
     public string AbsolutePath { get { return Request.Url?.AbsolutePath ?? ""; } }
 
@@ -587,7 +628,7 @@ namespace jbSoft.Reusable
     /// Process any request data and generate a response.
     /// </summary>
     /// <returns>
-    /// True indicating the server should continue running; false indicating the server should shutdown after this transaction.
+    /// True indicating the server should continue running; false indicating the server should shutdown after this operation.
     /// </returns>
     public virtual Task<bool> Process()
     {
@@ -827,12 +868,17 @@ namespace jbSoft.Reusable
   }
 
 
+  /// <summary>
+  /// A marker interface for HttpOperations that are streaming operations such as SSE servers.
+  /// </summary>
+  public interface IHttpStream { }
+
 
   /// <summary>
   /// Handles a favicon request.
   /// </summary>
   [HttpUri("/favicon.ico")]
-  public class Favicon : HttpTransaction
+  public class Favicon : HttpOperation
   {
     public override Task<bool> Process()
     {
@@ -847,7 +893,7 @@ namespace jbSoft.Reusable
   /// Handles a shutdown request and terminates the Server.
   /// </summary>
   [HttpUri("/shutdown")]
-  public class Shutdown : HttpTransaction
+  public class Shutdown : HttpOperation
   {
     /// <summary>
     /// Gets or sets an indication of whether or not a Restart link should be added to the response page.

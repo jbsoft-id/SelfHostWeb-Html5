@@ -6,7 +6,7 @@ using jbSoft.Reusable;
 
 
 [HttpUri("/updatetable")]
-public class UpdateTable : HttpTransaction
+public class UpdateTable : HttpOperation
 {
   public override Task<bool> Process()
   {
