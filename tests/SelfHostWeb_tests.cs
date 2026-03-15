@@ -358,7 +358,7 @@ namespace jbSoft.Reusable.Tests
       Task.Run(() => _httpServer.Start(_httpServer.CancellationTokenSource));
 
       // Assert
-      Assert.Multiple(async () =>
+      Assert.Multiple(() =>
       {
         Assert.That(_httpServer.TryWaitIsListeningState(true), Is.True);
         Assert.That(async () => await _client.GetStreamAsync("http://localhost:7000/brokenstreamer"),
