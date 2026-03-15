@@ -23,6 +23,8 @@ public class AppTemplateBase : HttpOperation
     <p>Async / REST Examples</p>
       <a href=""resttests"">REST Tests</a>
       <a href=""resthtml5"">Async-REST w/ Html5</a>
+    <p>Server Sent Events</p>
+      <a href=""serverclock"">Server Clock</a>
     <p>Error Tests</p>
       <a href=""missingresource"">Missing Resource</a>
       <a href=""nonexistanturl"">Non-Existant URL</a>
