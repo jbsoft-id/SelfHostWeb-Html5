@@ -28,25 +28,7 @@ Method HttpTransaction.GetQueryStringValue(""NonExistentKey"") = {DumpGetQuerySt
 Method HttpTransaction.GetQueryStringValue(""KeyWithNoVal"") = {DumpGetQueryStringValue("KeyWithNoVal")}
 Method HttpTransaction.GetQueryStringValue(""KeyWithMultiVals"") = {DumpGetQueryStringValue("KeyWithMultiVals")}
       </pre>
-    </div>
-    
-    <script>
-  const eventSource = new EventSource('/clockstreamer');
-
-  eventSource.onopen = () => {{console.log('SSE connection opened')}};
-
-  eventSource.onmessage = (event) => {{
-    document.getElementById('clockdisplay').innerHTML = event.data;
-  }}
-
-  eventSource.onerror = () => {{
-    if (eventSource.readyState === EventSource.CONNECTING) {{
-      console.log('Reconnecting...');
-    }}
-  }};
-
-</script>
-";
+    </div>";
 
     return await base.Process();
   }
