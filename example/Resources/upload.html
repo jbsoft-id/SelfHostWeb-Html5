@@ -1,0 +1,47 @@
+<h1>Self Hosted Web Server</h1>
+<h2>Upload File(s)</h2>
+
+<p>
+This example makes use of a third party NuGET package called HttpMultipartParser to parse the request body.<br>
+Note: The form's <b>enctype</b> must be set to <b>multipart/form-data.</b><br>
+This encoding allows the form to send input data and files in the same request.<br>
+<br>
+The page is initially loaded with with a GET request from the menu as show in the Request Data display below.<br>
+Once the form is loaded and its inputs populated, the Upload button POSTs the form's data back to this URL. 
+HttpMultipartParser decodes the requst and lists input data and file names in the Request Data section.<br>
+</p>
+
+<div>
+  <fieldset>
+    <legend>Post Data</legend>
+      <form action="" method="POST" enctype="multipart/form-data">
+        <table>
+          <tr>
+            <td>User Input:</td>
+            <td><input type="text" name="user_input" id="user_input"></td>
+          </tr>
+          <tr>
+            <td>Number:</td>
+            <td><input type="number" name="number" id="number"></td>
+          </tr>
+          <tr>
+            <td>File:</td>
+            <td><input type="file" name="file[]" id="file" multiple></td>
+          </tr>
+          <tr>
+            <td>
+              <button type="submit">Upload</button>
+            </td>
+          </tr>
+        </table>
+      </form>
+  </fieldset>
+
+  <h3>Request Data</h3>
+  <pre class="run">
+HttpMethod: {{HttpMethod}}
+
+Request Body decoded with HttpMultipartParser methods:
+{{DecodeEntityBody}}
+  </pre>
+</div>

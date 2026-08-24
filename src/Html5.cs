@@ -244,11 +244,7 @@ namespace jbSoft.Reusable
       {
         name = char.ToUpper(name[0]) + name.Substring(1).ToLower();
 
-        if (value == null)
-        {
-          result = "";
-        }
-        else if (string.IsNullOrWhiteSpace(value))
+        if (string.IsNullOrWhiteSpace(value))
         {
           result = $" {name}";
         }
@@ -456,15 +452,13 @@ namespace jbSoft.Reusable
       {
         result = result.Trim();
 
-        if (string.IsNullOrEmpty(content))
+        content = content.Trim();
+        if (!string.IsNullOrEmpty(content))
         {
-          result += $"</{tag}>\n";
+          result += content;
         }
-        else
-        {
-          content = content.Trim();
-          result += $"{content}</{tag}>\n";
-        }
+        
+        result += $"</{tag}>\n";
       }
 
       return result;

@@ -20,6 +20,7 @@ public class AppTemplateBase : HttpOperation
       <a href=""index.html?KeyWithMultiVals=val1&KeyWithNoVal&KeyWithMultiVals=val2&KeyWithMultiVals=val3&test=1234&bool"">GET with Query String</a>
       <a href=""postform.html"">Post Form</a>
       <a href=""testhtml5"">Test Html5</a>
+      <a href=""upload"">Upload a File</a>
     <p>Async / REST Examples</p>
       <a href=""resttests"">REST Tests</a>
       <a href=""resthtml5"">Async-REST w/ Html5</a>

@@ -1,0 +1,5 @@
+
+
+# This package is needed for the Upload a File example.
+#
+dotnet add example\SelfHostWeb.csproj package HttpMultipartParser --package-directory packages
