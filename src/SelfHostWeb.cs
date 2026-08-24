@@ -357,7 +357,6 @@ namespace jbSoft.Reusable
 
     private async Task InvokeHttpStream(HttpOperation httpStream, HttpListenerContext context)
     {
-      SelfHostWebLog.WriteLine($"Found HttpStream: {httpStream.GetType().Name}");
       HttpListenerResponse response = context.Response;
 
       try
